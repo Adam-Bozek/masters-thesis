@@ -42,3 +42,8 @@ Before executing `init.sql`, replace the following placeholders with your actual
 | **`secret password`**        | `APP_PASSWORD` from `.env`        | Password for `app_user` |
 | **`mydatabase`**             | `POSTGRES_DB` from `.env`         | Name of the database |
 
+> ### Important note:
+> When setting up docker on ubuntu server, the init.sql was not executed. I had to manually execute it.
+>
+>
+>
