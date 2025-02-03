@@ -39,6 +39,6 @@ Before executing `init.sql`, replace the following placeholders with your actual
 |------------------------------|-----------------------------------|-------------|
 | **`admin_user`**             | `POSTGRES_USER` from `.env`       | Admin database user |
 | **`app_user`**               | `APP_USER` from `.env`            | API user with limited access |
-| **`secure_readwrite_password`** | `APP_PASSWORD` from `.env`        | Password for `app_user` |
-| **`mydatabase`**             | `POSTGRES_DB` from `.env`        | Name of the database |
+| **`secret password`**        | `APP_PASSWORD` from `.env`        | Password for `app_user` |
+| **`mydatabase`**             | `POSTGRES_DB` from `.env`         | Name of the database |
 
