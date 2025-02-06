@@ -1,0 +1,54 @@
+services:
+  database:
+    image: postgresql:latest
+    container_name: postgres_database
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+    networks:
+      - app-network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+      timeout: 3s
+
+  backend:
+    build:
+      context: ./back-end
+    container_name: python_backend
+    env_file:
+      - .env
+    ports:
+      - "5000:5000"
+    networks:
+      - app-network
+    depends_on:
+      database:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./front-end
+    container_name: nextjs_frontend
+    env_file:
+      - .env
+    ports:
+      - "80:80"
+    networks:
+      - app-network
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge
