@@ -1,29 +1,38 @@
-# 1. Fáza: Build fáza, používa Node.js
-FROM node:latest  AS build
+# 1. Build Phase
+FROM node:latest AS build
 
-# Nastavíme pracovný adresár vo vnútri kontajnera
-WORKDIR /front-end
+# Set working directory
+WORKDIR /app
 
-# Skopírujeme package.json a package-lock.json do kontajnera
+# Copy package.json and package-lock.json
 COPY package*.json ./
 
-# Inštalujeme závislosti
+# Install dependencies
 RUN npm install
 
-# Skopírujeme všetky súbory projektu do kontajnera
+# Copy the rest of the project files
 COPY . .
 
-# Zostavíme React aplikáciu (build)
+# Build the Next.js application
 RUN npm run build
 
-# 2. Fáza: Produkčná fáza, použijeme Nginx
-FROM nginx:latest
+# 2. Production Phase
+FROM node:latest AS production
 
-# Skopírujeme z build fázy (z priečinka /app/build) do Nginx priečinka
-COPY --from=build /front-end/build /usr/share/nginx/html
+# Set working directory
+WORKDIR /app
 
-# Exponujeme port 80 pre Nginx
-EXPOSE 80
+# Copy only the necessary files from the build phase
+COPY --from=build /app/package.json ./
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/.next ./.next
+COPY --from=build /app/public ./public
 
-# Spustíme Nginx v predvoleného režime (ako daemon off)
-CMD ["nginx", "-g", "daemon off;"]
+# Set environment variable to production
+ENV NODE_ENV=production
+
+# Expose the default Next.js port
+EXPOSE 3000
+
+# Start the Next.js application
+CMD ["npm", "run", "start"]
