@@ -20,7 +20,7 @@ RUN npm run build
 FROM nginx:latest
 
 # Skopírujeme z build fázy (z priečinka /app/build) do Nginx priečinka
-COPY --from=build /app/build /usr/share/nginx/html
+COPY --from=build /front-end/build /usr/share/nginx/html
 
 # Exponujeme port 80 pre Nginx
 EXPOSE 80
