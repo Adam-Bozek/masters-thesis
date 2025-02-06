@@ -1,6 +1,8 @@
+"use client";
+
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import axios from "axios";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 
 interface User {
 	id: number;
@@ -54,12 +56,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 	};
 
 	const logout = useCallback(() => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    setUser(null);
-    router.push("/login");
-}, [router, setUser]);
-
+		localStorage.removeItem("accessToken");
+		localStorage.removeItem("refreshToken");
+		setUser(null);
+		router.push("/login");
+	}, [router]);
 
 	useEffect(() => {
 		const refreshAccessToken = async () => {
