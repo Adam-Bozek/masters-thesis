@@ -2,12 +2,12 @@ import withAuth from "../../utilities/WithAuth";
 import { useAuth } from "../../utilities/AuthContext";
 
 const Dashboard = () => {
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
 
   return (
     <div>
       <h2>Dashboard</h2>
-      <p>Welcome, User ID: {user}</p>
+      <p>Welcome</p>
       <button onClick={logout}>Logout</button>
     </div>
   );
