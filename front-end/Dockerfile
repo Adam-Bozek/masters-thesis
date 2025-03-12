@@ -32,7 +32,7 @@ COPY --from=build /app/public ./public
 ENV NODE_ENV=production
 
 # Expose the default Next.js port
-EXPOSE 80
+EXPOSE 443
 
 # Start the Next.js application
 CMD ["npm", "run", "start"]
