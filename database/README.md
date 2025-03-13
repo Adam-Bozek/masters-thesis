@@ -1,11 +1,10 @@
 # Overview
 
-This subfolder `database/` contains four important files:
+This subfolder `database/` contains files:
 
 1. `.env` file  
-2. `.gitignore` file  
-3. `docker-compose.yml` file  
-4. `init.sql` file  
+2. `.gitignore` file
+3. `init.sql` file  
 
 ## **`.env` File Description**
 Since this code runs on the server, the `.env` file is **not included in this repository** for security reasons. However, it should follow this structure:
