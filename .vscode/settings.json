@@ -2,9 +2,15 @@
   "cSpell.words": [
     "dotenv",
     "gunicorn",
+    "initdb",
     "jsonify",
+    "mydatabase",
+    "nextjs",
     "psycopg",
+    "pycache",
     "rolname",
+    "sdist",
+    "Secr",
     "sqlalchemy"
   ]
 }
