@@ -1,5 +1,5 @@
 from flask import request, jsonify
-from flask_jwt_extended import create_access_token, create_refresh_token
+from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required
 from .models import User
 from . import db, bcrypt
 from datetime import timedelta
@@ -58,7 +58,7 @@ def login():
 
     # Create JWT tokens (access and refresh)
     access_token = create_access_token(identity=user.id, fresh=True, expires_delta=timedelta(hours=1))
-    refresh_token = create_refresh_token(identity=user.id, expires_delta=timedelta(days=30))  # Optional
+    refresh_token = create_refresh_token(identity=user.id, expires_delta=timedelta(days=30))
 
     # Successful login
     return jsonify({
@@ -67,3 +67,8 @@ def login():
         "access_token": access_token,
         "refresh_token": refresh_token
     }), 200
+
+
+@jwt_required()
+def test_route():
+    return jsonify({"message": "This is a test route"}), 200
