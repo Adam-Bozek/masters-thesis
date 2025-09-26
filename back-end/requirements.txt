@@ -1,6 +1,5 @@
 flask
 flask_sqlalchemy
-flask_bcrypt
 flask_jwt_extended
 psycopg2
 flask_cors
