@@ -2,11 +2,13 @@ from flask import Flask
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
+from flask_bcrypt import Bcrypt
 from sqlalchemy import text
 
 from .config import Config
 
 db = SQLAlchemy()
+bcrypt = Bcrypt()
 jwt = JWTManager()
 
 
@@ -18,7 +20,8 @@ def create_app() -> Flask:
     
     db.init_app(app)
     jwt.init_app(app)
-
+    bcrypt.init_app(app)
+    
     # Verify DB connection
     with app.app_context():
         try:
