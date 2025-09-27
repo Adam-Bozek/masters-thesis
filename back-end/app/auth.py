@@ -57,8 +57,8 @@ def login():
         return jsonify({"message": "Invalid email or password"}), 401
 
     # Create JWT tokens (access and refresh)
-    access_token = create_access_token(identity=user.id, fresh=True, expires_delta=timedelta(hours=1))
-    refresh_token = create_refresh_token(identity=user.id, expires_delta=timedelta(days=30))
+    access_token = create_access_token(identity=str(user.id), fresh=True, expires_delta=timedelta(hours=1))
+    refresh_token = create_refresh_token(identity=str(user.id), expires_delta=timedelta(days=30))
 
     # Successful login
     return jsonify({
