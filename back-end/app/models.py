@@ -1,5 +1,6 @@
+from __future__ import annotations
 from . import db
-from datetime import datetime
+
 
 class User(db.Model):
     __tablename__ = "users"
@@ -7,6 +8,6 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.Text, nullable=False)
     last_name = db.Column(db.Text, nullable=False)
-    email = db.Column(db.Text, unique=True, nullable=False)
+    email = db.Column(db.Text, unique=True, nullable=False, index=True)
     password = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    token_version = db.Column(db.Integer, nullable=False, default=1)

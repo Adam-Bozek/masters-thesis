@@ -1,5 +1,5 @@
 # 1. Build Phase
-FROM node:current-alpine3.20 AS build
+FROM node:alpine3.21 AS build
 
 # Set working directory
 WORKDIR /app
@@ -17,7 +17,7 @@ COPY . .
 RUN npm run build
 
 # 2. Production Phase
-FROM node:current-alpine3.20 AS production
+FROM node:alpine3.21 AS production
 
 # Set working directory
 WORKDIR /app
