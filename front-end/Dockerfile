@@ -1,5 +1,5 @@
 # 1. Build Phase
-FROM node:alpine3.21 AS build
+FROM node:24.9-bookworm AS build
 
 # Set working directory
 WORKDIR /app
@@ -17,7 +17,7 @@ COPY . .
 RUN npm run build
 
 # 2. Production Phase
-FROM node:alpine3.21 AS production
+FROM node:24.9-bookworm AS production
 
 # Set working directory
 WORKDIR /app

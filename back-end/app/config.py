@@ -27,7 +27,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Redis (either REDIS_URL or host/port/pass)
-    REDIS_URL = os.getenv("REDIS_URL")  # e.g. redis://:password@redis:6379/0
+    REDIS_URL = os.getenv("REDIS_URL")
     REDIS_HOST = os.getenv("REDIS_HOST", "redis")
     REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
     REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
