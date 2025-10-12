@@ -1,30 +1,25 @@
+"use client";
+
 import { useEffect } from "react";
 import { useAuth } from "./AuthContext";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 
-interface WithAuthProps {
-    [key: string]: unknown;
-}
+type WithAuthProps = Record<string, unknown>;
 
-const withAuth = (WrappedComponent: React.ComponentType<WithAuthProps>) => {
-    const ComponentWithAuth = (props: WithAuthProps) => {
-        const { user, loading } = useAuth();
-        const router = useRouter();
+const withAuth = <P extends WithAuthProps>(Wrapped: React.ComponentType<P>) => {
+  const ComponentWithAuth = (props: P) => {
+    const { user, loading } = useAuth();
+    const router = useRouter();
 
-        useEffect(() => {
-            if (!loading && !user) {
-                router.push("/login"); // Redirect if not logged in
-            }
-        }, [user, loading, router]);
+    useEffect(() => {
+      if (!loading && !user) router.replace("/login");
+    }, [loading, user, router]);
 
-        if (loading) {
-            return <p>Loading...</p>; // Show loading state while checking auth
-        }
+    if (loading) return <p>Loading...</p>;
+    return user ? <Wrapped {...props} /> : null;
+  };
 
-        return user ? <WrappedComponent {...props} /> : null; // Render wrapped component if user is authenticated
-    };
-
-    return ComponentWithAuth;
+  return ComponentWithAuth;
 };
 
 export default withAuth;

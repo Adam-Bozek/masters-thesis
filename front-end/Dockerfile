@@ -22,7 +22,7 @@ FROM node:24.9-bookworm AS production
 # Set working directory
 WORKDIR /app
 
-# Copy only the necessary files from the build phase
+# Copy the necessary files from the build phase
 COPY --from=build /app/package.json ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/.next ./.next
