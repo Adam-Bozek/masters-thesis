@@ -35,6 +35,7 @@ export default function Register({ setMode }: Props) {
 
     try {
       await register(firstName.trim(), lastName.trim(), email.trim(), password);
+      setMode("login")
     } catch (e: unknown) {
       if (e instanceof Error) {
         setErr(e.message);
