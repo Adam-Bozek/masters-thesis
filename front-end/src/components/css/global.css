@@ -3,106 +3,108 @@ main {
   min-height: 100dvh;
 }
 
+/* ---------- ROOT COLOR TOKENS (fixed sRGB, no color-mix) ---------- */
 :root{
-  --soft-blue:#93c5fd;
-  --to-white:#ffffff;
+  --soft-blue: #93c5fd;
+  --to-white:  #ffffff;
 
   /* Glass system */
-  --c-glass:#bbbbbc;
-  --c-light:#ffffff;
-  --c-dark:#000000;
+  --glass-bg: rgba(187, 187, 188, 0.18);
+  --glass-border: rgba(255, 255, 255, 0.40);
+  --glass-inset: rgba(255, 255, 255, 0.15);
+  --glass-shadow: rgba(0, 0, 0, 0.12);
 
-  --glass-reflex-dark:1;
-  --glass-reflex-light:1;
-  --saturation:160%;
+  --text-dark: #0b2852;
+  --saturation: 160%;
 }
 
-/* Hidden SVG filter holder (rendered once in layout) */
+/* ---------- SVG FILTER HOLDER (kept hidden for compatibility) ---------- */
 .svgFilters{
-  position:fixed; inset:0; width:0; height:0;
-  pointer-events:none; visibility:hidden;
+  position: fixed;
+  inset: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  visibility: hidden;
 }
 
-/* Liquid-glass */
+/* ---------- LIQUID GLASS CONTAINER ---------- */
 .glass{
-  position:relative;
-  border-radius:1rem;
-  background-color:color-mix(in srgb, var(--c-glass) 18%, transparent);
+  position: relative;
+  border-radius: 1rem;
+  background-color: var(--glass-bg);
 
   /* Main look */
-  backdrop-filter:blur(14px) saturate(var(--saturation)) url(#liquidGlass);
-  -webkit-backdrop-filter:blur(14px) saturate(var(--saturation)); /* Safari */
-
-  /* Fallback/extra displacement */
-  filter:url(#liquidGlass);
-
-  border:1px solid color-mix(in srgb, var(--c-light) 40%, transparent);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light)*10%), transparent),
-    inset 2px 3px 0 -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light)*85%), transparent),
-    inset -2px -2px 0 -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light)*70%), transparent),
-    inset -2px -8px 1px -6px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light)*55%), transparent),
-    inset 0 -1px 4px 0 color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark)*12%), transparent),
-    0 1px 5px 0   color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark)*10%), transparent),
-    0 6px 16px 0  color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark)*8%), transparent);
-  overflow:clip;
-  color:#0b2852;
-}
-.glass::before{
-  content:"";
-  position:absolute; inset:0; border-radius:inherit;
-  background:
-    radial-gradient(120% 60% at 10% 0%, color-mix(in srgb, var(--c-light) 35%, transparent) 0%, transparent 50%),
-    linear-gradient(180deg, color-mix(in srgb, var(--c-light) 3%, transparent), transparent);
-  pointer-events:none; mix-blend-mode:screen;
-}
-/* Sklenený input (drop-in k tvojej .glass) */
-.glass-input{
-  background-color: color-mix(in srgb, var(--c-glass) 18%, transparent);
   backdrop-filter: blur(14px) saturate(var(--saturation));
   -webkit-backdrop-filter: blur(14px) saturate(var(--saturation));
-  border: 1px solid color-mix(in srgb, var(--c-light) 40%, transparent);
+
+  border: 1px solid var(--glass-border);
   box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--c-light) 10%, transparent),
-    inset 2px 3px 0 -2px color-mix(in srgb, var(--c-light) 85%, transparent),
-    inset -2px -2px 0 -2px color-mix(in srgb, var(--c-light) 70%, transparent),
-    inset 0 -1px 4px 0 color-mix(in srgb, var(--c-dark) 12%, transparent);
-  color: #0b2852;
-  border-radius: .90rem;
+    inset 0 0 0 1px var(--glass-inset),
+    0 4px 14px var(--glass-shadow);
+  overflow: clip;
+  color: var(--text-dark);
 }
 
-/* Hover/focus, prístupná „aura“ namiesto outline */
+/* Subtle reflection layer */
+.glass::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(120% 60% at 10% 0%, rgba(255,255,255,0.35) 0%, transparent 50%),
+    linear-gradient(180deg, rgba(255,255,255,0.03), transparent);
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+/* ---------- INPUTS WITH GLASS EFFECT ---------- */
+.glass-input{
+  background-color: var(--glass-bg);
+  backdrop-filter: blur(14px) saturate(var(--saturation));
+  -webkit-backdrop-filter: blur(14px) saturate(var(--saturation));
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    inset 0 0 0 1px var(--glass-inset),
+    0 4px 10px var(--glass-shadow);
+  color: var(--text-dark);
+  border-radius: 0.9rem;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+
+/* Hover & focus states */
 .glass-input:hover{
-  border-color: color-mix(in srgb, var(--c-light) 55%, transparent);
+  border-color: rgba(255, 255, 255, 0.55);
 }
 .glass-input:focus{
-  border-color: color-mix(in srgb, var(--soft-blue) 70%, transparent);
+  border-color: rgba(147, 197, 253, 0.7); /* soft-blue */
   box-shadow:
-    0 0 0 .2rem color-mix(in srgb, var(--soft-blue) 25%, transparent),
-    inset 0 0 0 1px color-mix(in srgb, var(--c-light) 20%, transparent);
+    0 0 0 0.2rem rgba(147, 197, 253, 0.25),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.2);
   outline: 0;
 }
 
-/* Bootstrap validácia */
+/* Bootstrap validation */
 .glass-input.is-invalid{ border-color:#dc3545; }
 .glass-input.is-valid{ border-color:#198754; }
 
-/* Form-floating label nech neruší pozadie */
+/* Floating label */
 .form-floating>.glass-input~label{
   color: #0b2852cc;
   background: transparent;
 }
 
-/* Autofill (Chrome/Safari) – zrušenie žltej výplne, zachovanie blur */
+/* Autofill fix (Chrome/Safari) */
 .glass-input:-webkit-autofill{
-  -webkit-box-shadow: 0 0 0px 1000px color-mix(in srgb, var(--c-glass) 18%, transparent) inset;
-  box-shadow: 0 0 0px 1000px color-mix(in srgb, var(--c-glass) 18%, transparent) inset;
-  -webkit-text-fill-color: #0b2852;
+  -webkit-box-shadow: 0 0 0px 1000px var(--glass-bg) inset;
+  box-shadow: 0 0 0px 1000px var(--glass-bg) inset;
+  -webkit-text-fill-color: var(--text-dark);
 }
 
-/* Disabled/read-only konzistentné so „sklom“ */
+/* Disabled / readonly */
 .glass-input:disabled,
 .glass-input[readonly]{
-  opacity:.8;
-  cursor:not-allowed;
+  opacity: .8;
+  cursor: not-allowed;
 }
