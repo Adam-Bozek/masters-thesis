@@ -49,7 +49,7 @@ export default function Register({ setMode }: Props) {
 
   return (
     <>
-      <form onSubmit={handleSubmit} noValidate>
+      <form onSubmit={handleSubmit} noValidate className={styles.formWidth}>
         <header className="mb-3">
           <h2 className="h4 mb-1">Vytvorte si účet</h2>
           <p className="text-secondary small m-0">Zaregistrujte sa e-mailom a heslom</p>

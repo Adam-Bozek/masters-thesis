@@ -17,12 +17,17 @@ export default function Home() {
 
   return (
     <>
-      <main className="d-flex align-items-center ">
-        <div className="container glass p-5">
-          <div className="row align-items-stretch">
-            <div className="col-lg-6 d-flex flex-column justify-content-center text-center m-5 px-5 py-4">
-              <h1 className={`${styles.title}`}>Vitajte! 👋</h1>
-              <p>
+      {/* add small vertical padding on mobile only */}
+      <main className="d-flex align-items-center py-3 py-lg-0">
+        {/* lighter padding on phones, keep glass look */}
+        <div className="container glass p-3 p-lg-5">
+          {/* tighter gutters on phones, normal on desktop */}
+          <div className="row g-3 g-lg-4 align-items-stretch">
+
+            {/* use the lg-only height class */}
+            <div className={`col-lg-6 d-flex flex-column justify-content-center text-center ${styles.heroCol}`}>
+              <h1 className={`${styles.title} mb-2`}>Vitajte! 👋</h1>
+              <p className="mb-3">
                 Táto webová aplikácia vznikla ako súčasť praktickej časti diplomovej práce a slúži na testovanie dieťaťa
                 skrátenou verziou testu TEKOS 2. Autorom je Bc. Adam Božek pod vedením doc. Ing. Stanislava Ondáša, PhD.
                 Viac informácií nájdete v karte Informácie.
@@ -62,7 +67,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className={`${styles.fieldsWidth} col-lg-6 d-flex flex-column justify-content-center text-center`}>
+            <div className="col-lg-6 d-flex flex-column justify-content-center align-items-center text-center">
               {mode === "login" ? (
                 <Login setMode={setMode} />
               ) : mode === "register" ? (
