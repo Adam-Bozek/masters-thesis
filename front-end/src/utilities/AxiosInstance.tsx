@@ -44,7 +44,7 @@ axiosInstance.interceptors.response.use(
         if (typeof window !== "undefined") {
           localStorage.removeItem("accessToken");
           localStorage.removeItem("refreshToken");
-          window.location.href = "/login";
+          window.location.href = "/";
         }
         throw e;
       } finally {

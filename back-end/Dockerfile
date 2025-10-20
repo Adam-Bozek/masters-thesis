@@ -1,5 +1,5 @@
 # Use a specific Python version for stability
-FROM python:3.13.7-bookworm
+FROM python:3.14.0-bookworm
 
 # Set the working directory
 WORKDIR /app

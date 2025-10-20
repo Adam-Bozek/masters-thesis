@@ -12,7 +12,7 @@ const withAuth = <P extends WithAuthProps>(Wrapped: React.ComponentType<P>) => {
     const router = useRouter();
 
     useEffect(() => {
-      if (!loading && !user) router.replace("/login");
+      if (!loading && !user) router.replace("/");
     }, [loading, user, router]);
 
     if (loading) return <p>Loading...</p>;

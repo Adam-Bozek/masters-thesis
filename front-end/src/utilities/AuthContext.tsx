@@ -52,14 +52,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 			password,
 		});
 
-		router.push("/login"); // Redirect to login after successful registration
+		router.push("/"); // Redirect to login after successful registration
 	};
 
 	const logout = useCallback(() => {
 		localStorage.removeItem("accessToken");
 		localStorage.removeItem("refreshToken");
 		setUser(null);
-		router.push("/login");
+		router.push("/");
 	}, [router]);
 
 	useEffect(() => {
