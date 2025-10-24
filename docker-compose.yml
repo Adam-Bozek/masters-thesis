@@ -19,23 +19,29 @@ services:
       - app
 
   cache:
-    image: redis:7.2-alpine
+    image: redis:8.2.2-alpine
     container_name: redis
-    restart: unless-stopped
+    command: >
+      redis-server --appendonly yes --appendfsync everysec
+      --save "" --requirepass ${REDIS_PASSWORD}
+    # expose only in dev; comment out in prod
     ports:
       - "6379:6379"
+    environment:
+      - TZ=Europe/Bratislava
     volumes:
       - redis_data:/data
-
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "PING"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
     networks:
       - app
 
   backend:
+    container_name: backend
     build:
       context: ./back-end
       dockerfile: backend.Dockerfile
@@ -55,6 +61,7 @@ services:
       - app
 
   frontend:
+    container_name: frontend
     build:
       context: ./front-end
       dockerfile: frontend.Dockerfile
