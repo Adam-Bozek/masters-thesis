@@ -1,5 +1,5 @@
 # ---------- Build Phase ----------
-FROM node:24.9-bookworm AS build
+FROM node:25.0.0-trixie AS build
 
 WORKDIR /app
 COPY package*.json ./
@@ -8,13 +8,13 @@ COPY . .
 RUN npm run build
 
 # ---------- Production Phase ----------
-FROM nginx:1.29.2-alpine
+FROM nginx:1.29.2-trixie
 
 # Copy Nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Install Node.js for Next.js runtime
-RUN apk add --no-cache nodejs npm
+RUN apt-get update && apt-get install -y nodejs npm && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
