@@ -42,6 +42,7 @@ services:
   backend:
     build:
       context: ./back-end
+      dockerfile: backend.Dockerfile
     container_name: backend
     env_file:
       - ./back-end/.env
@@ -64,6 +65,7 @@ services:
   frontend:
     build:
       context: ./front-end
+      dockerfile: frontend.Dockerfile
     container_name: frontend
     env_file:
       - ./front-end/.env
