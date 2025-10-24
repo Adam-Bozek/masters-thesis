@@ -49,8 +49,8 @@ test_bp.route("/sessions/<int:session_id>/answers", methods=["GET"])(list_answer
 
 
 # ---- Health route ----
-@auth_bp.route("/health", methods=["GET"])
-def health():
+@auth_bp.route("/db_cache_health", methods=["GET"])
+def db_redis_health():
     """
     Liveness/readiness probe.
     - DB: executes a lightweight SELECT 1
@@ -83,3 +83,8 @@ def health():
 
     body = {"status": "ok" if status_code == 200 else "degraded", **checks}
     return jsonify(body), status_code
+
+
+@auth_bp.route("/health", methods=["GET"])
+def health():
+    return "OK", 200

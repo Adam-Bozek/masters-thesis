@@ -10,21 +10,19 @@ RUN npm run build
 # ---------- Production Phase ----------
 FROM nginx:1.29.2-trixie
 
-# Copy Nginx config
+# Copy nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Install Node.js for Next.js runtime
+# Install Node.js to run Next.js
 RUN apt-get update && apt-get install -y nodejs npm && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-
-# Copy app files
 COPY --from=build /app ./
 
 ENV NODE_ENV=production
+EXPOSE 80 3000
 
-EXPOSE 80
-
-# Run both Next.js and Nginx
-CMD ["sh", "-c", "npm run start -- -p 3000 & nginx -g 'daemon off;'"]
-
+# Start Next.js first, wait for it, then start Nginx
+CMD sh -c "npm run start -- -H 0.0.0.0 -p 3000 & \
+  echo 'Waiting for Next.js...' && sleep 5 && \
+  nginx -g 'daemon off;'"

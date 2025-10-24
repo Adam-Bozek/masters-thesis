@@ -1,24 +1,24 @@
-# Use a specific Python version for stability
 FROM python:3.14.0-trixie
 
-# Set the working directory
 WORKDIR /app
 
-# Copy dependencies first to optimize build cache
-COPY requirements.txt .
-
 # Install dependencies efficiently
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code
+# Copy the rest of the application
 COPY . .
 
-# Set environment variables
+# Environment variables
 ENV FLASK_APP=run.py
 ENV FLASK_ENV=production
 
-# Expose Flask port
+# Expose port
 EXPOSE 5000
 
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "--timeout", "120", "run:app"]
+# Healthcheck for Gunicorn/Flask
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD curl -f http://localhost:5000/api/health || exit 1
 
+# Start the app
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "--timeout", "120", "run:app"]
