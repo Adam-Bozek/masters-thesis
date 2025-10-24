@@ -1,14 +1,12 @@
 services:
   database:
     image: postgres:18.0-trixie
-    container_name: postgres_database
-    restart: always
+    container_name: postgres
+    restart: unless-stopped
     env_file:
       - ./database/.env
     ports:
       - "5432:5432"
-    networks:
-      - app-network
     volumes:
       - postgres_data:/var/lib/postgresql
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -17,10 +15,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - app
 
-  redis:
+  cache:
     image: redis:8.2.2-alpine
-    container_name: jwt_redis
+    container_name: redis
     command: >
       redis-server --appendonly yes --appendfsync everysec
       --save "" --requirepass ${REDIS_PASSWORD}
@@ -31,29 +31,28 @@ services:
       - TZ=Europe/Bratislava
     volumes:
       - redis_data:/data
-    networks:
-      - app-network
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "PING"]
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: always
+    networks:
+      - app
 
   backend:
     build:
       context: ./back-end
-    container_name: python_backend
+    container_name: backend
     env_file:
       - ./back-end/.env
     ports:
       - "5000:5000"
     networks:
-      - app-network
+      - app
     depends_on:
       database:
         condition: service_healthy
-      redis:
+      cache:
         condition: service_healthy
     restart: always
     healthcheck:
@@ -65,13 +64,13 @@ services:
   frontend:
     build:
       context: ./front-end
-    container_name: nextjs_frontend
+    container_name: frontend
     env_file:
       - ./front-end/.env
     ports:
       - "80:80"
     networks:
-      - app-network
+      - app
     depends_on:
       - backend
     restart: always
@@ -81,5 +80,5 @@ volumes:
   redis_data:
 
 networks:
-  app-network:
+  app:
     driver: bridge
