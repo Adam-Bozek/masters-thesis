@@ -1,5 +1,5 @@
 # Use a specific Python version for stability
-FROM python:3.14.0-bookworm
+FROM python:3.14.0-trixie
 
 # Set the working directory
 WORKDIR /app
