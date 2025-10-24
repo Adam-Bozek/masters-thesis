@@ -21,9 +21,7 @@ def create_session():
     """Start a new test session for the current user."""
     uid = int(get_jwt_identity())
     user = _assert_user_or_404(uid)
-    
-    print(f"UID: {uid}, User: {user}")
-    
+
     if isinstance(user, tuple):
         return user
 
