@@ -17,4 +17,3 @@ def revoke_jti_with_ttl(jti: str, exp_ts: int) -> None:
         r.setex(_bl_key(jti), ttl, "1")
     except Exception as e:
         print("Failed to revoke jti in Redis: %r", e)
-        
