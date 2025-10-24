@@ -151,6 +151,6 @@ def create_app() -> Flask:
     from .routes_config import test_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api")
-    app.register_blueprint(test_bp, url_prefix="/api/test")
+    app.register_blueprint(test_bp, url_prefix="/api")
 
     return app

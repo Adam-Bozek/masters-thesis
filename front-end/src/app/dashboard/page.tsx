@@ -1,19 +1,11 @@
 "use client";
 
-import { useState } from "react";
-
-import Login from "@/components/public/Login";
-import Register from "@/components/public/Register";
-import Info from "@/components/public/Info";
-
 import "@/components/css/global.css";
 
 import styles from "@/components/css/home.module.css";
 
-type Mode = "login" | "register" | "info";
 
 export default function Home() {
-  const [mode, setMode] = useState<Mode>("register");
 
   return (
     <>
