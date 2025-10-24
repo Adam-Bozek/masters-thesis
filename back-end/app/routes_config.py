@@ -6,7 +6,8 @@ from sqlalchemy import text
 from redis import Redis
 
 from . import db
-from .auth import (
+
+from .routes.auth_routes import (
     register,
     login,
     refresh,
@@ -17,7 +18,17 @@ from .auth import (
     test_route,
 )
 
+from .routes.test_sessions_routes import (
+    create_session,
+    list_sessions,
+    get_session,
+    complete_session,
+    add_or_update_answer,
+    list_answers,
+)
+
 auth_bp = Blueprint("auth", __name__)
+test_bp = Blueprint("test_sessions", __name__)
 
 # ---- Auth routes ----
 auth_bp.route("/register", methods=["POST"])(register)
@@ -28,6 +39,13 @@ auth_bp.route("/logout-refresh", methods=["POST"])(logout_refresh)
 auth_bp.route("/logout-all", methods=["POST"])(logout_all)
 auth_bp.route("/me", methods=["GET"])(me)
 auth_bp.route("/test", methods=["GET"])(test_route)
+
+test_bp.route("/sessions", methods=["POST"])(create_session)
+test_bp.route("/sessions", methods=["GET"])(list_sessions)
+test_bp.route("/sessions/<int:session_id>", methods=["GET"])(get_session)
+test_bp.route("/sessions/<int:session_id>/complete", methods=["PATCH"])(complete_session)
+test_bp.route("/sessions/<int:session_id>/answers", methods=["POST"])(add_or_update_answer)
+test_bp.route("/sessions/<int:session_id>/answers", methods=["GET"])(list_answers)
 
 
 # ---- Health route ----

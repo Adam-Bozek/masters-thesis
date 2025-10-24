@@ -10,9 +10,9 @@ from flask_jwt_extended import (
     jwt_required,
 )
 
-from . import db, bcrypt
-from .models import User
-from .redis_utils import revoke_jti_with_ttl
+from .. import db, bcrypt
+from ..models import User
+from ..redis_utils import revoke_jti_with_ttl
 
 
 # ---- Helpers ----
@@ -23,8 +23,6 @@ def _assert_token_version_or_401(user: User, token_ver: int | None):
 
 
 # ---- Routes ----
-
-
 def register():
     data = request.get_json(silent=True) or {}
     first_name = (data.get("first_name") or "").strip()

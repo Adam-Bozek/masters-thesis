@@ -30,8 +30,55 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Table to store the fixed test categories
+CREATE TABLE IF NOT EXISTS test_categories (
+    id SERIAL PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    question_count INTEGER NOT NULL
+);
+
+-- Populate the test categories (one-time insert)
+INSERT INTO test_categories (name, question_count) VALUES
+  ('Marketplace', 16),
+  ('Mountains', 8),
+  ('Zoo', 11),
+  ('Home', 24),
+  ('Street', 12),
+  ('Parent_answerd', 25)
+ON CONFLICT (name) DO NOTHING;
+
+-- A session of test taken by a user
+CREATE TABLE IF NOT EXISTS user_test_sessions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    started_at TIMESTAMPTZ DEFAULT NOW(),
+    completed_at TIMESTAMPTZ
+);
+
+-- Answers to each question in a session
+CREATE TABLE IF NOT EXISTS user_test_answers (
+    id SERIAL PRIMARY KEY,
+    session_id INTEGER NOT NULL REFERENCES user_test_sessions(id) ON DELETE CASCADE,
+    category_id INTEGER NOT NULL REFERENCES test_categories(id),
+    question_number INTEGER NOT NULL, -- 1-based index
+    answer_state TEXT CHECK (
+        answer_state IN ('1', '2', '3', 'true', 'false')
+    ) NOT NULL,
+    user_answer TEXT,
+    answered_at TIMESTAMPTZ DEFAULT NOW(),
+    
+    -- Enforce unique answer per question per session+category
+    UNIQUE (session_id, category_id, question_number)
+);
+
+
 -- Create index only if it does not exist
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
--- Explicitly grant privileges on the existing "users" table
-GRANT SELECT, INSERT, UPDATE, DELETE ON users TO "app_user";
+-- Explicitly grant privileges on the tables
+GRANT SELECT, INSERT, UPDATE, DELETE ON 
+    test_categories, 
+    user_test_sessions, 
+    user_test_answers 
+TO "app_user";
+

@@ -147,8 +147,10 @@ def create_app() -> Flask:
 
     # ---- Register blueprints ----
     # Import inside the factory to avoid import cycles
-    from .routes import auth_bp
+    from .routes_config import auth_bp
+    from .routes_config import test_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api")
+    app.register_blueprint(test_bp, url_prefix="/api/test")
 
     return app
