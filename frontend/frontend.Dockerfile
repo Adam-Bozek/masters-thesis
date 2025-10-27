@@ -24,5 +24,5 @@ EXPOSE 80 3000
 
 # Start Next.js first, wait for it, then start Nginx
 CMD sh -c "npm run start -- -H 0.0.0.0 -p 3000 & \
-  echo 'Waiting for Next.js...' && sleep 5 && \
+  echo 'Waiting for Next.js...' && sleep 1 && \
   nginx -g 'daemon off;'"
