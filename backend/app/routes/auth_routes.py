@@ -80,7 +80,6 @@ def login():
     return jsonify(
         {
             "message": "Login successful",
-            "user_id": user.id,
             "access_token": access_token,
             "refresh_token": refresh_token,
         }

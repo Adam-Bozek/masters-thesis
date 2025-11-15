@@ -107,7 +107,7 @@ def create_app() -> Flask:
     bcrypt.init_app(app)
     jwt.init_app(app)
 
-    # ---- JWT Blocklist: safe + resilient ----
+    # ---- JWT Blocklist ----
     @jwt.token_in_blocklist_loader
     def token_in_blocklist(jwt_header, jwt_data) -> bool:
         """
@@ -146,7 +146,6 @@ def create_app() -> Flask:
             return False
 
     # ---- Register blueprints ----
-    # Import inside the factory to avoid import cycles
     from .routes_config import auth_bp
     from .routes_config import test_bp
 

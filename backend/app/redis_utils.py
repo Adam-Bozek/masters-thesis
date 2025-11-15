@@ -1,9 +1,8 @@
-# app/redis_utils.py
 from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from .__init__ import r, _bl_key  # reuse the same Redis client & key builder
+from .__init__ import r, _bl_key
 
 
 def revoke_jti_with_ttl(jti: str, exp_ts: int) -> None:

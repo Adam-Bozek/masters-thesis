@@ -1,4 +1,3 @@
-# app/routes.py
 from __future__ import annotations
 
 from flask import Blueprint, jsonify, current_app
@@ -48,7 +47,7 @@ test_bp.route("/sessions/<int:session_id>/answers", methods=["POST"])(add_or_upd
 test_bp.route("/sessions/<int:session_id>/answers", methods=["GET"])(list_answers)
 
 
-# ---- Health route ----
+# ---- Health routes ----
 @auth_bp.route("/db_cache_health", methods=["GET"])
 def db_redis_health():
     """

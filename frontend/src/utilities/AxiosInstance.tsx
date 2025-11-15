@@ -33,7 +33,7 @@ axiosInstance.interceptors.response.use(
       isRefreshing = true;
       try {
         const refreshToken = typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null;
-        const { data } = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`, { refreshToken });
+        const { data } = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/refresh`, { refreshToken });
         const newToken = data?.accessToken;
         if (typeof window !== "undefined") localStorage.setItem("accessToken", newToken);
         pending.forEach((fn) => fn(newToken));
