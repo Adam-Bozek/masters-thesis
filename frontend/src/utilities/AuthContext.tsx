@@ -15,7 +15,7 @@ interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
   register: (firstName: string, lastName: string, email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   loading: boolean;
 }
 
@@ -81,15 +81,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       password,
     });
 
-    router.push("/"); // Redirect to login after successful registration
+    router.push("/");
   };
 
-  const logout = useCallback(() => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    delete axios.defaults.headers.common["Authorization"];
-    setUser(null);
-    router.push("/");
+  const logout = useCallback(async () => {
+    try {
+      // This will send the current Authorization header with the access token
+      await axios.post(`${API_URL}/logout`);
+    } catch (err) {
+      console.error("Logout API failed, clearing local auth anyway. Error:", err);
+    } finally {
+      // Clear auth on client no matter what
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      delete axios.defaults.headers.common["Authorization"];
+      setUser(null);
+      router.push("/");
+    }
   }, [router]);
 
   useEffect(() => {

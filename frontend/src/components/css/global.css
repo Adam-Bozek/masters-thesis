@@ -1,4 +1,4 @@
-main {
+body {
   background: linear-gradient(30deg, #93c5fd 0%, #ffffff 100%);
   min-height: 100dvh;
 }
@@ -16,7 +16,20 @@ main {
 
   --text-dark: #0b2852;
   --saturation: 160%;
+
+  --status-active-bg:  rgba(251, 191, 36, 0.18); /* soft amber/orange */
+  --status-active-border: rgba(251, 191, 36, 0.7);
+  --status-active-text: #92400e;
+
+  --status-done-bg:  rgba(52, 211, 153, 0.18);  /* soft mint green */
+  --status-done-border: rgba(52, 211, 153, 0.7);
+  --status-done-text: #065f46;
 }
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-dark) !important;
+}
+
 
 /* ---------- SVG FILTER HOLDER (kept hidden for compatibility) ---------- */
 .svgFilters{
@@ -107,4 +120,112 @@ main {
 .glass-input[readonly]{
   opacity: .8;
   cursor: not-allowed;
+}
+
+/* ---------- GLASS ACCORDION (inside session cards) ---------- */
+
+.glass-accordion {
+  background: transparent;
+  border-radius: 1rem;
+}
+
+/* Remove default Bootstrap borders/backgrounds */
+.glass-accordion .accordion-item {
+  background: transparent;
+  border: 0;
+}
+
+.glass-accordion .accordion-button {
+  background-color: transparent;
+  color: var(--text-dark);
+  font-weight: 600;
+  padding: 1rem 1.5rem;
+  box-shadow: none;
+}
+
+/* Open state – subtle highlight, still glassy */
+.glass-accordion .accordion-button:not(.collapsed) {
+  background: radial-gradient(
+      140% 180% at 0% 0%,
+      rgba(255, 255, 255, 0.10),
+      transparent 60%
+    );
+  box-shadow: none;
+}
+
+/* Focus outline in soft blue */
+.glass-accordion .accordion-button:focus {
+  box-shadow: 0 0 0 0.15rem rgba(147, 197, 253, 0.45);
+}
+
+/* Chevron icon color to match text-dark */
+.glass-accordion .accordion-button::after {
+  filter: brightness(0) saturate(100%) invert(10%) sepia(20%)
+          saturate(1200%) hue-rotate(190deg) brightness(92%)
+          contrast(95%);
+  opacity: 0.8;
+}
+
+/* Body sits on the same glass, just a tiny divider line */
+.glass-accordion .accordion-body {
+  background: transparent;
+  padding: 0.75rem 1.5rem 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+/* --------- STATUS PILLS ---------- */
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.15rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+
+  backdrop-filter: blur(14px) saturate(var(--saturation));
+  -webkit-backdrop-filter: blur(14px) saturate(var(--saturation));
+
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+}
+
+/* "Prebieha" – soft orange accent, still glassy */
+.status-pill--active {
+  background: linear-gradient(
+    135deg,
+    var(--status-active-bg),
+    rgba(255, 255, 255, 0.04)
+  );
+  border-color: var(--status-active-border);
+  color: var(--status-active-text);
+}
+
+/* "Ukončené" – soft green accent */
+.status-pill--done {
+  background: linear-gradient(
+    135deg,
+    var(--status-done-bg),
+    rgba(255, 255, 255, 0.04)
+  );
+  border-color: var(--status-done-border);
+  color: var(--status-done-text);
+}
+
+
+.category-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.category-list-item {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.category-list-item:last-child {
+  border-bottom: 0;
 }

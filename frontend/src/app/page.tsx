@@ -18,12 +18,10 @@ export default function Home() {
   return (
     <>
       {/* add small vertical padding on mobile only */}
-      <main className="d-flex align-items-center py-3 py-lg-0">
+      <main className="d-flex align-items-center justify-content-center min-vh-100 py-3 py-lg-0">
         {/* lighter padding on phones, keep glass look */}
-        <div className="container glass p-3 p-lg-5">
-          {/* tighter gutters on phones, normal on desktop */}
+        <div className="container glass p-3 p-lg-5 mx-3">
           <div className="row g-3 g-lg-4 align-items-stretch">
-
             {/* use the lg-only height class */}
             <div className={`col-lg-6 d-flex flex-column justify-content-center text-center ${styles.heroCol}`}>
               <h1 className={`${styles.title} mb-2`}>Vitajte! 👋</h1>

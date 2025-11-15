@@ -90,6 +90,77 @@ def complete_session(session_id: int):
 
 
 @jwt_required()
+def list_session_categories(session_id: int):
+    """
+    List all categories that appear in answers for a given session.
+
+    Only categories that have at least one answer in this session are returned.
+    """
+    uid = int(get_jwt_identity())
+    session = UserTestSession.query.filter_by(id=session_id, user_id=uid).first()
+    if not session:
+        return jsonify({"message": "Session not found"}), 404
+
+    categories = (
+        db.session.query(TestCategory)
+        .join(UserTestAnswer, UserTestAnswer.category_id == TestCategory.id)
+        .filter(UserTestAnswer.session_id == session.id)
+        .distinct()
+        .order_by(TestCategory.id)
+        .all()
+    )
+
+    result = [
+        {
+            "id": c.id,
+            "name": c.name,
+            "question_count": c.question_count,
+            "completed_at": c.completed_at.isoformat() if c.completed_at else None,
+        }
+        for c in categories
+    ]
+
+    return jsonify(result), 200
+
+
+@jwt_required()
+def complete_category(session_id: int, category_id: int):
+    """
+    Mark a category as completed (sets completed_at on TestCategory),
+    scoped to a given session for the current user.
+    """
+    uid = int(get_jwt_identity())
+
+    # Ensure the session belongs to the current user
+    session = UserTestSession.query.filter_by(id=session_id, user_id=uid).first()
+    if not session:
+        return jsonify({"message": "Session not found"}), 404
+
+    category = TestCategory.query.get(category_id)
+    if not category:
+        return jsonify({"message": "Category not found"}), 404
+
+    # Optional safety: ensure this category is actually part of this session
+    has_answer = UserTestAnswer.query.filter_by(session_id=session.id, category_id=category_id).first()
+    if not has_answer:
+        return jsonify({"message": "Category not part of this session"}), 400
+
+    if category.completed_at:
+        return jsonify({"message": "Category already completed"}), 400
+
+    category.completed_at = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify(
+        {
+            "message": "Category completed",
+            "category_id": category.id,
+            "completed_at": category.completed_at.isoformat(),
+        }
+    ), 200
+
+
+@jwt_required()
 def add_or_update_answer(session_id: int):
     """Add or update one answer (idempotent upsert)."""
     uid = int(get_jwt_identity())

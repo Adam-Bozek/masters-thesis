@@ -28,12 +28,20 @@ class TestCategory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.Text, nullable=False, unique=True)
     question_count = db.Column(db.Integer, nullable=False)
+    # maps to completed_at TIMESTAMPTZ
+    completed_at = db.Column(db.DateTime, nullable=True)
 
     answers = db.relationship("UserTestAnswer", back_populates="category")
 
-    def __init__(self, name: str, question_count: int) -> None:
+    def __init__(
+        self,
+        name: str,
+        question_count: int,
+        completed_at: datetime | None = None,
+    ) -> None:
         self.name = name
         self.question_count = question_count
+        self.completed_at = completed_at
 
 
 class UserTestSession(db.Model):
