@@ -4,7 +4,13 @@ from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from .. import db
-from ..models import User, UserTestSession, UserTestAnswer, TestCategory
+from ..models import (
+    User,
+    UserTestSession,
+    UserTestAnswer,
+    TestCategory,
+    SessionTestCategory,  # NEW
+)
 
 
 # ---- Helpers ----
@@ -18,7 +24,7 @@ def _assert_user_or_404(uid: int) -> User | tuple:
 # ---- Routes ----
 @jwt_required()
 def create_session():
-    """Start a new test session for the current user."""
+    """Start a new test session for the current user and attach categories."""
     uid = int(get_jwt_identity())
     user = _assert_user_or_404(uid)
 
@@ -27,6 +33,13 @@ def create_session():
 
     new_session = UserTestSession(user_id=uid)
     db.session.add(new_session)
+    db.session.flush()  # ensure new_session.id is available
+
+    # Create one SessionTestCategory per static category for this session
+    categories = TestCategory.query.order_by(TestCategory.id).all()
+    for c in categories:
+        db.session.add(SessionTestCategory(session_id=new_session.id, category_id=c.id))
+
     db.session.commit()
 
     return jsonify(
@@ -92,33 +105,28 @@ def complete_session(session_id: int):
 @jwt_required()
 def list_session_categories(session_id: int):
     """
-    List all categories that appear in answers for a given session.
-
-    Only categories that have at least one answer in this session are returned.
+    List all categories for a given session, including per-session state
+    (started_at, completed_at, was_corrected).
     """
     uid = int(get_jwt_identity())
     session = UserTestSession.query.filter_by(id=session_id, user_id=uid).first()
     if not session:
         return jsonify({"message": "Session not found"}), 404
 
-    categories = (
-        db.session.query(TestCategory)
-        .join(UserTestAnswer, UserTestAnswer.category_id == TestCategory.id)
-        .filter(UserTestAnswer.session_id == session.id)
-        .distinct()
-        .order_by(TestCategory.id)
-        .all()
-    )
-
-    result = [
-        {
-            "id": c.id,
-            "name": c.name,
-            "question_count": c.question_count,
-            "completed_at": c.completed_at.isoformat() if c.completed_at else None,
-        }
-        for c in categories
-    ]
+    # We created one SessionTestCategory per TestCategory in create_session()
+    result = []
+    for sc in session.session_categories:  # relationship on UserTestSession
+        c = sc.category  # static TestCategory
+        result.append(
+            {
+                "id": c.id,
+                "name": c.name,
+                "question_count": c.question_count,
+                "started_at": sc.started_at.isoformat() if sc.started_at else None,
+                "completed_at": sc.completed_at.isoformat() if sc.completed_at else None,
+                "was_corrected": sc.was_corrected,
+            }
+        )
 
     return jsonify(result), 200
 
@@ -126,8 +134,8 @@ def list_session_categories(session_id: int):
 @jwt_required()
 def complete_category(session_id: int, category_id: int):
     """
-    Mark a category as completed (sets completed_at on TestCategory),
-    scoped to a given session for the current user.
+    Mark a category as completed for this specific session
+    (sets completed_at on SessionTestCategory).
     """
     uid = int(get_jwt_identity())
 
@@ -136,26 +144,27 @@ def complete_category(session_id: int, category_id: int):
     if not session:
         return jsonify({"message": "Session not found"}), 404
 
-    category = TestCategory.query.get(category_id)
-    if not category:
-        return jsonify({"message": "Category not found"}), 404
+    # Per-session category row
+    sc = SessionTestCategory.query.filter_by(session_id=session.id, category_id=category_id).first()
+    if not sc:
+        return jsonify({"message": "Category not part of this session"}), 404
 
-    # Optional safety: ensure this category is actually part of this session
+    # Optional: only allow completion if at least one answer exists in this category
     has_answer = UserTestAnswer.query.filter_by(session_id=session.id, category_id=category_id).first()
     if not has_answer:
-        return jsonify({"message": "Category not part of this session"}), 400
+        return jsonify({"message": "No answers for this category in this session"}), 400
 
-    if category.completed_at:
+    if sc.completed_at:
         return jsonify({"message": "Category already completed"}), 400
 
-    category.completed_at = datetime.utcnow()
+    sc.completed_at = datetime.utcnow()
     db.session.commit()
 
     return jsonify(
         {
             "message": "Category completed",
-            "category_id": category.id,
-            "completed_at": category.completed_at.isoformat(),
+            "category_id": sc.category_id,
+            "completed_at": sc.completed_at.isoformat(),
         }
     ), 200
 
@@ -181,19 +190,30 @@ def add_or_update_answer(session_id: int):
 
     user_answer = data.get("user_answer")
 
-    category = TestCategory.query.get(category_id)
-    if not category:
-        return jsonify({"message": "Category not found"}), 404
+    # Ensure this category is part of this session
+    sc = SessionTestCategory.query.filter_by(session_id=session.id, category_id=category_id).first()
+    if not sc:
+        return jsonify({"message": "Category not part of this session"}), 400
+
+    category = sc.category  # static category with question_count, name, etc.
 
     if not (1 <= question_number <= category.question_count):
         return jsonify({"message": "Invalid question number"}), 400
 
-    existing = UserTestAnswer.query.filter_by(session_id=session.id, category_id=category_id, question_number=question_number).first()
+    # Optionally set started_at on first answer
+    if sc.started_at is None:
+        sc.started_at = datetime.utcnow()
+
+    existing = UserTestAnswer.query.filter_by(
+        session_id=session.id,
+        category_id=category_id,
+        question_number=question_number,
+    ).first()
 
     if existing:
         existing.answer_state = answer_state
         existing.user_answer = user_answer
-        existing.answered_at = datetime.now()
+        existing.answered_at = datetime.utcnow()
     else:
         db.session.add(
             UserTestAnswer(
@@ -229,3 +249,40 @@ def list_answers(session_id: int):
         for a in session.answers
     ]
     return jsonify(answers), 200
+
+
+@jwt_required()
+def correct_category(session_id: int, category_id: int):
+    """
+    Mark a category as 'corrected' for this specific session
+    (sets was_corrected = True on SessionTestCategory).
+    """
+    uid = int(get_jwt_identity())
+
+    # Ensure the session belongs to the current user
+    session = UserTestSession.query.filter_by(id=session_id, user_id=uid).first()
+    if not session:
+        return jsonify({"message": "Session not found"}), 404
+
+    # Find the per-session category row
+    sc = SessionTestCategory.query.filter_by(session_id=session.id, category_id=category_id).first()
+    if not sc:
+        return jsonify({"message": "Category not part of this session"}), 404
+
+    # Optional: require category to be completed before correction
+    # if not sc.completed_at:
+    #     return jsonify({"message": "Category not completed yet"}), 400
+
+    if sc.was_corrected:
+        return jsonify({"message": "Category already corrected"}), 400
+
+    sc.was_corrected = True
+    db.session.commit()
+
+    return jsonify(
+        {
+            "message": "Category corrected",
+            "category_id": sc.category_id,
+            "was_corrected": sc.was_corrected,
+        }
+    ), 200

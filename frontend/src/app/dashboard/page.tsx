@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import "@/components/css/global.css";
 import styles from "@/components/css/home.module.css";
 
@@ -19,10 +20,11 @@ type SessionCategory = {
   id: number;
   name: string;
   question_count: number;
+  started_at: string | null;
   completed_at: string | null;
+  was_corrected: boolean;
 };
 
-// per-session categories state
 type CategoriesState = {
   [sessionId: number]: {
     data: SessionCategory[] | null;
@@ -46,8 +48,6 @@ const DashboardPage = () => {
 
   const [categoriesState, setCategoriesState] = useState<CategoriesState>({});
 
-  // ---- Load sessions -------------------------------------------------
-
   useEffect(() => {
     const fetchSessions = async () => {
       try {
@@ -66,10 +66,7 @@ const DashboardPage = () => {
     void fetchSessions();
   }, []);
 
-  // ---- Load categories for one session -------------------------------
-
   const fetchCategoriesForSession = async (sessionId: number) => {
-    // mark loading
     setCategoriesState((prev) => ({
       ...prev,
       [sessionId]: {
@@ -101,7 +98,43 @@ const DashboardPage = () => {
     }
   };
 
-  // ---- Toggle accordion & lazy-load categories -----------------------
+  const handleCorrectCategory = async (sessionId: number, categoryId: number) => {
+    try {
+      await axiosInstance.patch(`/sessions/${sessionId}/categories/${categoryId}/correct`);
+
+      // Update local state so UI reflects was_corrected = true
+      setCategoriesState((prev) => {
+        const sessionState = prev[sessionId];
+        if (!sessionState || !sessionState.data) return prev;
+
+        return {
+          ...prev,
+          [sessionId]: {
+            ...sessionState,
+            data: sessionState.data.map((cat) => (cat.id === categoryId ? { ...cat, was_corrected: true } : cat)),
+          },
+        };
+      });
+    } catch (err: unknown) {
+      const message = getErrorMessage(err, "Nepodarilo sa označiť kategóriu ako skontrolovanú.");
+
+      setCategoriesState((prev) => {
+        const sessionState = prev[sessionId] ?? {
+          data: null,
+          loading: false,
+          error: null,
+        };
+
+        return {
+          ...prev,
+          [sessionId]: {
+            ...sessionState,
+            error: message,
+          },
+        };
+      });
+    }
+  };
 
   const handleToggleSession = (sessionId: number) => {
     const willOpen = expandedSessionId !== sessionId;
@@ -137,14 +170,44 @@ const DashboardPage = () => {
     });
   };
 
-  // ---- Render --------------------------------------------------------
+  const printCategoryName = (category_name: string) => {
+    if (category_name === "Marketplace") {
+      return "Obchod";
+    } else if (category_name === "Mountains") {
+      return "Hory";
+    } else if (category_name === "Zoo") {
+      return "ZOO";
+    } else if (category_name === "Home") {
+      return "Domov";
+    } else if (category_name === "Street") {
+      return "Ulica";
+    } else if (category_name === "Parent_answerd") {
+      return "Odpovede rodiča";
+    } else {
+      return "Zlý názov kategórie";
+    }
+  };
+
+  const formatDurationMinutes = (startIso: string | null, endIso: string | null) => {
+    if (!startIso || !endIso) return "-";
+
+    const start = new Date(startIso);
+    const end = new Date(endIso);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "-";
+
+    const diffMs = end.getTime() - start.getTime();
+    if (diffMs <= 0) return "-";
+
+    const minutes = Math.round(diffMs / 60000); // 60 * 1000
+
+    return `${minutes} min`;
+  };
 
   return (
     <>
       <Header />
-      {/* Main content column */}
       <main className="container d-flex flex-column align-items-start">
-        {/* --- Top card with title/description/status --- */}
         <div className="glass p-3 p-lg-5 mb-4 w-100">
           <h1 className={`${styles.title} mb-3`}>História sedení</h1>
           <p className="mb-4">
@@ -163,7 +226,6 @@ const DashboardPage = () => {
           {!loadingSessions && !sessionsError && sessions.length === 0 && <p>Zatiaľ nemáte žiadne sedenia.</p>}
         </div>
 
-        {/* --- Sessions list: each session in its own glass card --- */}
         {!loadingSessions && !sessionsError && sessions.length > 0 && (
           <div className="w-100 d-flex flex-column gap-3">
             {sessions.map((session) => {
@@ -209,12 +271,12 @@ const DashboardPage = () => {
                             <p className="mb-1">
                               <strong>Ukončené:</strong> {formatDateTime(session.completed_at)}
                             </p>
+
                             <p className="mb-0">
                               <strong>Stav:</strong> {isCompleted ? "Ukončené" : "Prebieha"}
                             </p>
                           </div>
 
-                          {/* Categories */}
                           <div className="mt-3">
                             {catsLoading && <p className="mb-0 small">Načítavam kategórie...</p>}
 
@@ -231,17 +293,16 @@ const DashboardPage = () => {
                                 {categories.map((category) => {
                                   const isCategoryCompleted = !!category.completed_at;
                                   const completedAt = category.completed_at;
-                                  // zatiaľ placeholder – nemáme atribút o skontrolovaní
-                                  const isCorrected = false;
+                                  const isCorrected = category.was_corrected;
+                                  const startedAt = category.started_at;
 
                                   return (
                                     <li
                                       key={category.id}
                                       className="category-list-item d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2"
                                     >
-                                      {/* left side: name + pills + date */}
                                       <div className="d-flex flex-wrap align-items-center gap-2">
-                                        <span className="fw-semibold">{category.name}</span>
+                                        <span className="fw-semibold">{printCategoryName(category.name)}</span>
 
                                         <span
                                           className={`status-pill ${
@@ -259,16 +320,25 @@ const DashboardPage = () => {
                                           {isCorrected ? "Skontrolovaná" : "Neskontrolovaná"}
                                         </span>
 
+                                        {/* optional: show both start + end */}
                                         <span className="small text-muted ms-1">
-                                          Dátum dokončenia: {completedAt ? formatDateTime(completedAt) : "-"}
+                                          Začiatok: {startedAt ? formatDateTime(startedAt) : "-"}
+                                        </span>
+                                        <span className="small text-muted ms-1">
+                                          Čas vyplňania: {formatDurationMinutes(startedAt, completedAt)}
                                         </span>
                                       </div>
 
-                                      {/* right side: buttons */}
                                       <div className="d-flex flex-wrap gap-2">
-                                        <button type="button" className="btn btn-outline-secondary btn-sm">
-                                          Opraviť
+                                        <button
+                                          type="button"
+                                          className="btn btn-outline-secondary btn-sm"
+                                          disabled={!isCategoryCompleted || isCorrected} // 👈 prevent double/early correction
+                                          onClick={() => handleCorrectCategory(session.id, category.id)} // 👈 call handler
+                                        >
+                                          {isCorrected ? "Skontrolovaná" : "Opraviť"}
                                         </button>
+
                                         <button type="button" className="btn btn-primary btn-sm">
                                           Spustiť kategóriu
                                         </button>
