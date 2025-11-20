@@ -208,14 +208,14 @@ const DashboardPage = () => {
     <>
       <Header />
       <main className="container d-flex flex-column align-items-start">
-        <div className="glass p-3 p-lg-5 mb-4 w-100">
-          <h1 className={`${styles.title} mb-3`}>História sedení</h1>
-          <p className="mb-4">
+        <div className="glass p-2 p-lg-5 mb-4 w-100">
+          <h1 className={`${styles.dashTitle} mb-3`}>Prehľad testov 📋</h1>
+          <p className="">
             Tu nájdete všetky vaše testovacie sedenia. Každé sedenie je v samostatnom akordeóne – po rozbalení uvidíte
             podrobnosti a stav kategórií.
           </p>
 
-          {loadingSessions && <p>Načítavam sedenia...</p>}
+          {loadingSessions && <p>Načítavam testovania...</p>}
 
           {sessionsError && (
             <div className="alert alert-danger" role="alert">
@@ -223,11 +223,11 @@ const DashboardPage = () => {
             </div>
           )}
 
-          {!loadingSessions && !sessionsError && sessions.length === 0 && <p>Zatiaľ nemáte žiadne sedenia.</p>}
+          {!loadingSessions && !sessionsError && sessions.length === 0 && <p>Zatiaľ nemáte žiadne testovania.</p>}
         </div>
 
         {!loadingSessions && !sessionsError && sessions.length > 0 && (
-          <div className="w-100 d-flex flex-column gap-3">
+          <div className="w-100 d-flex flex-column mb-3">
             {sessions.map((session) => {
               const isOpen = expandedSessionId === session.id;
               const isCompleted = !!session.completed_at;
@@ -238,7 +238,7 @@ const DashboardPage = () => {
               const catsError = catState?.error;
 
               return (
-                <div key={session.id} className="glass p-0 w-100">
+                <div key={session.id} className="glass p-0 w-100 mb-3">
                   <div className="accordion glass-accordion" id={`sessionAccordion-${session.id}`}>
                     <div className="accordion-item">
                       <h2 className="accordion-header">
@@ -249,15 +249,14 @@ const DashboardPage = () => {
                         >
                           <div className="d-flex flex-column flex-lg-row w-100 justify-content-between align-items-lg-center gap-1">
                             <div className="d-flex align-items-center gap-2">
-                              <strong>Sedenie #{session.id}</strong>
+                              <strong>Testovanie </strong>{" "}
+                              <span className="small text-muted me-4">zo dňa: {formatDate(session.started_at)}</span>
                               <span
                                 className={`status-pill ${isCompleted ? "status-pill--done" : "status-pill--active"}`}
                               >
                                 {isCompleted ? "Ukončené" : "Prebieha"}
                               </span>
                             </div>
-
-                            <span className="small text-muted me-4">Začiatok: {formatDate(session.started_at)}</span>
                           </div>
                         </button>
                       </h2>
@@ -302,7 +301,9 @@ const DashboardPage = () => {
                                       className="category-list-item d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2"
                                     >
                                       <div className="d-flex flex-wrap align-items-center gap-2">
-                                        <span className="fw-semibold">{printCategoryName(category.name)}</span>
+                                        <span className="fw-semibold">
+                                          Kategória: {printCategoryName(category.name)}
+                                        </span>
 
                                         <span
                                           className={`status-pill ${

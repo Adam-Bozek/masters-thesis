@@ -31,6 +31,10 @@ export default function Home() {
                 Viac informácií nájdete v karte Informácie.
               </p>
 
+              <p className="status-pill status-pill--active warning-pill py-1">
+                Pre správne fungovanie webovej aplikácie je potrbené použiť prehliadač Google Chrome.
+              </p>
+
               <div className="glass my-4 p-2 rounded-4 align-self-center" style={{ width: "max-content" }}>
                 <button
                   type="button"
