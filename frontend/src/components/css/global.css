@@ -24,6 +24,9 @@ body {
   --status-done-bg:  rgba(52, 211, 153, 0.18);  /* soft mint green */
   --status-done-border: rgba(52, 211, 153, 0.7);
   --status-done-text: #065f46;
+
+  --c-light: #ffffff;
+  --c-glass: rgba(147, 197, 253, 0.45);
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -233,4 +236,58 @@ h1, h2, h3, h4, h5, h6 {
 .warning-pill {
   font-size: 0.8rem;
   width: "max-content";
+}
+
+.status-pill--info {
+  background: linear-gradient(
+    135deg,
+    rgba(147, 197, 253, 0.2),
+    rgba(255, 255, 255, 0.04)
+  );
+  border-color: rgba(147, 197, 253, 0.7);
+  color: #1d4ed8;
+}
+
+.category-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.category-list-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) auto;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.category-list-item:last-child {
+  border-bottom: 0;
+}
+
+.category-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.category-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Stack actions under text on small screens */
+@media (max-width: 576px) {
+  .category-list-item {
+    grid-template-columns: 1fr;
+  }
+
+  .category-actions {
+    justify-content: flex-start;
+  }
 }
