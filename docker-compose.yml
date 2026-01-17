@@ -5,8 +5,6 @@ services:
     restart: unless-stopped
     env_file:
       - ./database/.env
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -24,9 +22,6 @@ services:
     command: >
       redis-server --appendonly yes --appendfsync everysec
       --save "" --requirepass ${REDIS_PASSWORD}
-    # expose only in dev; comment out in prod
-    ports:
-      - "6379:6379"
     environment:
       - TZ=Europe/Bratislava
     volumes:
@@ -44,7 +39,7 @@ services:
     container_name: backend
     build:
       context: ./backend
-      dockerfile: backend.Dockerfile
+      dockerfile: backend.dockerfile
     ports:
       - "5000:5000"
     depends_on:
@@ -64,7 +59,7 @@ services:
     container_name: frontend
     build:
       context: ./frontend
-      dockerfile: frontend.Dockerfile
+      dockerfile: frontend.dockerfile
     ports:
       - "80:80"
       - "443:443"

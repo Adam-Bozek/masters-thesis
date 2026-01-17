@@ -1,5 +1,3 @@
--- init.template.sql
-
 -- Check if the user exists before creating it
 DO $$
 BEGIN

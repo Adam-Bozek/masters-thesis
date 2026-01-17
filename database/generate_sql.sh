@@ -15,7 +15,7 @@ export $(grep -v '^#' "$ENV_FILE" | xargs)
 
 cd "$SCRIPT_DIR"
 
-# Render template using envsubst
-envsubst < init.template.sql > init.sql
+envsubst '${POSTGRES_USER} ${POSTGRES_PASSWORD} ${POSTGRES_DB} ${APP_USER} ${APP_PASSWORD}' < init.template.sql > init.sql
+
 
 echo "Generated init.sql successfully"
