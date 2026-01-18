@@ -1,5 +1,5 @@
 # ---------- Build Phase ----------
-FROM node:25.0.0-trixie AS build
+FROM node:25.3.0-trixie-slim AS build
 
 WORKDIR /app
 COPY package*.json ./
@@ -8,7 +8,7 @@ COPY . .
 RUN npm run build
 
 # ---------- Production Phase ----------
-FROM nginx:1.29.2-trixie
+FROM nginx:1.29.4-trixie
 
 # Copy nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
