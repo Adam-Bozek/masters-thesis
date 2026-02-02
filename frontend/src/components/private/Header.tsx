@@ -13,11 +13,13 @@ const Header = () => {
   const [showScene, setShowScene] = useState(false);
 
   const config = {
-    picture_1: { path: "/images/1.jpg", display_time: "0:00", display_type: "insert" },
-    picture_2: { path: "/images/2.jpg", display_time: "0:23", display_type: "add" },
-    picture_3: { path: "/images/3.jpg", display_time: "1:00", display_type: "remove-all-and-add" },
-    sound_path: "/sounds/2.mp3",
-  } satisfies SceneConfig;
+    sound_path: "/sounds/testing/zoo/scene.mp3",
+    pictures: [
+      { path: "/images/1.jpg", display_time: "0:00", display_type: "insert" },
+      { path: "/images/2.jpg", display_time: "0:23", display_type: "add" },
+      { path: "/images/3.jpg", display_time: "1:00", display_type: "remove_all_and_add" },
+    ],
+  } as const satisfies SceneConfig;
 
   return (
     <>
@@ -45,7 +47,7 @@ const Header = () => {
         </div>
       </header>
 
-      {showScene && <SceneBuilder config={config} autoplay onEnded={() => setShowScene(false)} />}
+      {showScene && <SceneBuilder config={config} autoplay next={<div>Next content</div>} />}
     </>
   );
 };

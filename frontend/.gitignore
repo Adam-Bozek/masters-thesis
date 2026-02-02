@@ -99,3 +99,7 @@ next-env.d.ts
 # 3D Images
 *.3dm
 *.max
+
+*.mp3
+*.m4a
+*.mp4

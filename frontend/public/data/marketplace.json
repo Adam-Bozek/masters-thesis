@@ -1,0 +1,295 @@
+[
+  {
+    "questionId": 1,
+    "questionType": 1,
+    "questionText": "Na ktorom obrázku je ananás?",
+    "questionAudioPath": "/sounds/testing/marketplace/1.mp3",
+    "acceptedTranscripts": ["ananás", "ananas", "nanas", "ananásik", "ananasik", "nanasik"],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Ananás", "imagePath": "/images/testing/marketplace/1-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Kiwi", "imagePath": "/images/testing/marketplace/1-2.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Mango", "imagePath": "/images/testing/marketplace/1-3.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Avokado", "imagePath": "/images/testing/marketplace/1-4.jpg" },
+      { "answerId": 5, "isCorrect": false, "label": "Citrón", "imagePath": "/images/testing/marketplace/1-5.jpg" },
+      { "answerId": 6, "isCorrect": false, "label": "Jablko", "imagePath": "/images/testing/marketplace/1-6.jpg" }
+    ]
+  },
+  {
+    "questionId": 2,
+    "questionType": 1,
+    "questionText": "Na ktorom obrázku je čokoláda?",
+    "questionAudioPath": "/sounds/testing/marketplace/2.mp3",
+    "acceptedTranscripts": ["čokoláda", "cokolada", "čoko", "coko", "čokoládka", "cokoladka", "čokoládička", "cokoladicka"],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Čokoláda", "imagePath": "/images/testing/marketplace/2-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Granko", "imagePath": "/images/testing/marketplace/2-2.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Koláč", "imagePath": "/images/testing/marketplace/2-3.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Piškóty", "imagePath": "/images/testing/marketplace/2-4.jpg" },
+      { "answerId": 5, "isCorrect": false, "label": "Lízanka", "imagePath": "/images/testing/marketplace/2-5.jpg" },
+      { "answerId": 6, "isCorrect": false, "label": "Cukrík", "imagePath": "/images/testing/marketplace/2-6.jpg" }
+    ]
+  },
+  {
+    "questionId": 3,
+    "questionType": 1,
+    "questionText": "Na ktorom obrázku je lekvár?",
+    "questionAudioPath": "/sounds/testing/marketplace/3.mp3",
+    "acceptedTranscripts": ["lekvár", "lekvar", "džem", "dzem", "lekvárik", "lekvarik", "džemík", "dzemik"],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Lekvár", "imagePath": "/images/testing/marketplace/3-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Malina", "imagePath": "/images/testing/marketplace/3-2.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Syrup", "imagePath": "/images/testing/marketplace/3-3.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Slivka", "imagePath": "/images/testing/marketplace/3-4.jpg" },
+      { "answerId": 5, "isCorrect": false, "label": "Džús", "imagePath": "/images/testing/marketplace/3-5.jpg" },
+      { "answerId": 6, "isCorrect": false, "label": "Čučoriedka", "imagePath": "/images/testing/marketplace/3-6.jpg" }
+    ]
+  },
+  {
+    "questionId": 4,
+    "questionType": 1,
+    "questionText": "Na ktorom obrázku je hrach?",
+    "questionAudioPath": "/sounds/testing/marketplace/4.mp3",
+    "acceptedTranscripts": ["hrach", "hrách", "hrašok", "hrasok", "hrášok", "hrachy", "hrášky", "hrasky", "hrašky"],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Hrach", "imagePath": "/images/testing/marketplace/4-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Kukurica", "imagePath": "/images/testing/marketplace/4-2.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Fazuľa", "imagePath": "/images/testing/marketplace/4-3.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Brokolica", "imagePath": "/images/testing/marketplace/4-4.jpg" },
+      { "answerId": 5, "isCorrect": false, "label": "Šalát", "imagePath": "/images/testing/marketplace/4-5.jpg" },
+      { "answerId": 6, "isCorrect": false, "label": "Šošovica", "imagePath": "/images/testing/marketplace/4-6.jpg" }
+    ]
+  },
+  {
+    "questionId": 5,
+    "questionType": 1,
+    "questionText": "Na ktorom obrázku je klobása?",
+    "questionAudioPath": "/sounds/testing/marketplace/5.mp3",
+    "acceptedTranscripts": ["klobása", "klobasa", "klobáska", "klobaska", "klobásky", "klobasky"],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Klobása", "imagePath": "/images/testing/marketplace/5-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Párky", "imagePath": "/images/testing/marketplace/5-2.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Šunka", "imagePath": "/images/testing/marketplace/5-3.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Syr", "imagePath": "/images/testing/marketplace/5-4.jpg" },
+      { "answerId": 5, "isCorrect": false, "label": "Slanina", "imagePath": "/images/testing/marketplace/5-5.jpg" },
+      { "answerId": 6, "isCorrect": false, "label": "Paštéta", "imagePath": "/images/testing/marketplace/5-6.jpg" }
+    ]
+  },
+  {
+    "questionId": 6,
+    "questionType": 1,
+    "questionText": "Na ktorom obrázku je mäso?",
+    "questionAudioPath": "/sounds/testing/marketplace/6.mp3",
+    "acceptedTranscripts": ["mäso", "maso", "mäsko", "masko", "mäsíčko", "masicko"],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Mäso", "imagePath": "/images/testing/marketplace/6-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Zemiaky", "imagePath": "/images/testing/marketplace/6-2.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Tofu", "imagePath": "/images/testing/marketplace/6-3.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Vyprážaný syr", "imagePath": "/images/testing/marketplace/6-4.jpg" },
+      { "answerId": 5, "isCorrect": false, "label": "Kečup", "imagePath": "/images/testing/marketplace/6-5.jpg" },
+      { "answerId": 6, "isCorrect": false, "label": "Kompót", "imagePath": "/images/testing/marketplace/6-6.jpg" }
+    ]
+  },
+  {
+    "questionId": 7,
+    "questionType": 1,
+    "questionText": "Na ktorom obrázku je papier?",
+    "questionAudioPath": "/sounds/testing/marketplace/7.mp3",
+    "acceptedTranscripts": ["papier", "papir", "papierik", "papieriky", "papierky", "papiere"],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Papier", "imagePath": "/images/testing/marketplace/7-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Zošit", "imagePath": "/images/testing/marketplace/7-2.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Pero", "imagePath": "/images/testing/marketplace/7-3.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Perie", "imagePath": "/images/testing/marketplace/7-4.jpg" },
+      { "answerId": 5, "isCorrect": false, "label": "Farbičky", "imagePath": "/images/testing/marketplace/7-5.jpg" },
+      { "answerId": 6, "isCorrect": false, "label": "Fixka", "imagePath": "/images/testing/marketplace/7-6.jpg" }
+    ]
+  },
+  {
+    "questionId": 8,
+    "questionType": 1,
+    "questionText": "Na ktorom obrázku je pivo?",
+    "questionAudioPath": "/sounds/testing/marketplace/8.mp3",
+    "acceptedTranscripts": ["pivo", "pivko"],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Pivo", "imagePath": "/images/testing/marketplace/8-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Limonáda", "imagePath": "/images/testing/marketplace/8-2.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Sirup 2", "imagePath": "/images/testing/marketplace/8-3.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Kofola", "imagePath": "/images/testing/marketplace/8-4.jpg" },
+      { "answerId": 5, "isCorrect": false, "label": "Čaj", "imagePath": "/images/testing/marketplace/8-5.jpg" },
+      { "answerId": 6, "isCorrect": false, "label": "Káva", "imagePath": "/images/testing/marketplace/8-6.jpg" }
+    ]
+  },
+  {
+    "questionId": 9,
+    "questionType": 1,
+    "questionText": "Na ktorom obrázku je pomaranč?",
+    "questionAudioPath": "/sounds/testing/marketplace/9.mp3",
+    "acceptedTranscripts": ["pomaranč", "pomaranc", "pomarančik", "pomarancik", "pomaranče", "pomarance"],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Pomaranč", "imagePath": "/images/testing/marketplace/9-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Jablko", "imagePath": "/images/testing/marketplace/1-6.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Hruška", "imagePath": "/images/testing/marketplace/9-3.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Slivka", "imagePath": "/images/testing/marketplace/3-4.jpg" },
+      { "answerId": 5, "isCorrect": false, "label": "Melón", "imagePath": "/images/testing/marketplace/9-5.jpg" },
+      { "answerId": 6, "isCorrect": false, "label": "Citrón", "imagePath": "/images/testing/marketplace/1-5.jpg" }
+    ]
+  },
+  {
+    "questionId": 10,
+    "questionType": 1,
+    "questionText": "na ktorom obrázku je krupica?",
+    "questionAudioPath": "/sounds/testing/marketplace/10.mp3",
+    "acceptedTranscripts": [
+      "krupica",
+      "krupička",
+      "krupicka",
+      "krupicová kaša",
+      "krupicova kasa",
+      "krupicová kašička",
+      "krupicova kasicka",
+      "kaša",
+      "kasa",
+      "kašíčka",
+      "kasicka"
+    ],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Krupica", "imagePath": "/images/testing/marketplace/10-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Granko", "imagePath": "/images/testing/marketplace/2-2.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Mlieko", "imagePath": "/images/testing/marketplace/10-3.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Guľky do mlieka", "imagePath": "/images/testing/marketplace/10-4.jpg" },
+      { "answerId": 5, "isCorrect": false, "label": "Maslo", "imagePath": "/images/testing/marketplace/10-5.jpg" },
+      { "answerId": 6, "isCorrect": false, "label": "Med", "imagePath": "/images/testing/marketplace/10-6.jpg" }
+    ]
+  },
+  {
+    "questionId": 11,
+    "questionType": 1,
+    "questionText": "Na ktorom obrázku je lepidlo?",
+    "questionAudioPath": "/sounds/testing/marketplace/11.mp3",
+    "acceptedTranscripts": ["lepidlo", "lepidlo na papier", "lepidlo na papierik", "lepím", "lepim"],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Lepidlo", "imagePath": "/images/testing/marketplace/11-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Nožnice", "imagePath": "/images/testing/marketplace/11-2.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Nálepky", "imagePath": "/images/testing/marketplace/11-3.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Pečiatky", "imagePath": "/images/testing/marketplace/11-4.jpg" },
+      { "answerId": 5, "isCorrect": false, "label": "Farby", "imagePath": "/images/testing/marketplace/11-5.jpg" },
+      { "answerId": 6, "isCorrect": false, "label": "Štetec", "imagePath": "/images/testing/marketplace/11-6.jpg" }
+    ]
+  },
+  {
+    "questionId": 12,
+    "questionType": 1,
+    "questionText": "Na ktorom obrázku je mašľa?",
+    "questionAudioPath": "/sounds/testing/marketplace/12.mp3",
+    "acceptedTranscripts": ["mašľa", "masla", "mašlička", "maslicka", "stužka", "stuzka"],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Mašľa", "imagePath": "/images/testing/marketplace/12-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Sponky", "imagePath": "/images/testing/marketplace/12-2.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Čelenka", "imagePath": "/images/testing/marketplace/12-3.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Sukňa", "imagePath": "/images/testing/marketplace/12-4.jpg" },
+      { "answerId": 5, "isCorrect": false, "label": "Vlasy", "imagePath": "/images/testing/marketplace/12-5.jpg" },
+      { "answerId": 6, "isCorrect": false, "label": "Šatka", "imagePath": "/images/testing/marketplace/12-6.jpg" }
+    ]
+  },
+  {
+    "questionId": 13,
+    "questionType": 2,
+    "questionText": "Na ktorom obrázku ujo čaká na autobusovej zastávke?",
+    "questionText2": "Čo robí ujo na autobusovej zastávke?",
+    "questionAudioPath": "/sounds/testing/marketplace/13-1.mp3",
+    "questionAudioPath2": "/sounds/testing/marketplace/13-2.mp3",
+    "acceptedTranscripts": [
+      "ujo čaká",
+      "ujo caka",
+      "čaká",
+      "caka",
+      "vyčkáva",
+      "vyckava",
+      "čaká na autobus",
+      "caka na autobus",
+      "čaká na zastávke",
+      "caka na zastavke"
+    ],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Ujo čaká", "imagePath": "/images/testing/marketplace/13-1.gif" },
+      { "answerId": 2, "isCorrect": false, "label": "Ujo ide", "imagePath": "/images/testing/marketplace/13-2.gif" }
+    ]
+  },
+  {
+    "questionId": 14,
+    "questionType": 2,
+    "questionText": "Na ktorom obrázku mamka nakupuje?",
+    "questionText2": "Čo robí mamka?",
+    "questionAudioPath": "/sounds/testing/marketplace/14-1.mp3",
+    "questionAudioPath2": "/sounds/testing/marketplace/14-2.mp3",
+    "acceptedTranscripts": [
+      "mamka nakupuje",
+      "mama nakupuje",
+      "mamička nakupuje",
+      "mamicka nakupuje",
+      "nakupuje",
+      "nakupuje v obchode",
+      "kupuje",
+      "kupuje veci"
+    ],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Mamka nakupuje", "imagePath": "/images/testing/marketplace/14-1.gif" },
+      { "answerId": 2, "isCorrect": false, "label": "Mamka upratuje", "imagePath": "/images/testing/marketplace/14-2.gif" }
+    ]
+  },
+  {
+    "questionId": 15,
+    "questionType": 2,
+    "questionText": "Na ktorom obrázku je žltý balón?",
+    "questionText2": "Akú farbu má balón?",
+    "questionAudioPath": "/sounds/testing/marketplace/15-1.mp3",
+    "questionAudioPath2": "/sounds/testing/marketplace/15-2.mp3",
+    "acceptedTranscripts": [
+      "žltý balón",
+      "zlty balon",
+      "žltý balon",
+      "zlty balón",
+      "balón je žltý",
+      "balon je zlty",
+      "žltý balónik",
+      "zlty balonik",
+      "balónik je žltý",
+      "balonik je zlty",
+      "žltý nafukovací balón",
+      "zlty nafukovaci balon",
+      "žltý balón vo vzduchu",
+      "zlty balon vo vzduchu",
+      "žltý balónik vo vzduchu",
+      "zlty balonik vo vzduchu",
+      "žltú"
+    ],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Žltý balón", "imagePath": "/images/testing/marketplace/15-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Modrý balón", "imagePath": "/images/testing/marketplace/15-2.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Zelený balón", "imagePath": "/images/testing/marketplace/15-3.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Šašo", "imagePath": "/images/testing/marketplace/15-4.jpg" }
+    ]
+  },
+  {
+    "questionId": 16,
+    "questionType": 4,
+    "questionText": "Čo vidíš na tomto obrázku?",
+    "questionAudioPath": "/sounds/testing/marketplace/16.mp3",
+    "imagePath": "/images/testing/marketplace/16.jpg",
+    "acceptedTranscripts": [
+      "autíčka",
+      "auticka",
+      "autíčká",
+      "autická",
+      "sú tam autíčka",
+      "su tam auticka",
+      "na obrázku sú autíčka",
+      "na obrazku su auticka",
+      "sú tam autá",
+      "su tam auta",
+      "autá",
+      "auta",
+      "hračky"
+    ]
+  }
+]

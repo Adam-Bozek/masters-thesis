@@ -1,10 +1,9 @@
-// app/components/SceneBuilder.tsx
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 
-export type DisplayType = "add" | "remove" | "remove_all_and_add" | "remove-all-and-add" | "insert";
+export type DisplayType = "add" | "remove" | "remove_all_and_add" | "insert";
 
 type SingleConfig = {
   picture_path: string;
@@ -13,13 +12,13 @@ type SingleConfig = {
 
 type MultiPictureItem = {
   path: string;
-  display_time: string;
+  display_time: string; // keep as string so JSON can be "00:05" etc.
   display_type: DisplayType;
 };
 
 type MultiConfig = {
   sound_path: string;
-  [key: `picture_${number}`]: MultiPictureItem;
+  pictures: MultiPictureItem[];
 };
 
 export type SceneConfig = SingleConfig | MultiConfig;
@@ -30,13 +29,14 @@ type SceneBuilderProps = {
   autoplay?: boolean;
   alt?: string;
   onEnded?: () => void;
-  insertFallbackPath?: string; // shown when stack is empty
+  insertFallbackPath?: string;
+  continueOnEnd?: boolean;
 };
 
 type Event = {
   at: number;
   path: string;
-  type: "add" | "remove" | "remove_all_and_add" | "insert";
+  type: DisplayType;
 };
 
 function parseTimeToSeconds(input: string): number {
@@ -53,13 +53,8 @@ function parseTimeToSeconds(input: string): number {
   return parts.reduce((acc, p) => acc * 60 + Number(p), 0);
 }
 
-function normalizeDisplayType(t: DisplayType): Event["type"] {
-  if (t === "remove-all-and-add") return "remove_all_and_add";
-  return t;
-}
-
 function isSingleConfig(c: SceneConfig): c is SingleConfig {
-  return (c as SingleConfig).picture_path !== undefined;
+  return "picture_path" in c;
 }
 
 export default function SceneBuilder({
@@ -69,6 +64,7 @@ export default function SceneBuilder({
   alt = "obrázok scény",
   onEnded,
   insertFallbackPath,
+  continueOnEnd = true,
 }: SceneBuilderProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -80,25 +76,22 @@ export default function SceneBuilder({
       };
     }
 
-    const evs: Event[] = Object.keys(config)
-      .filter((k) => /^picture_\d+$/.test(k))
-      .map((k) => {
-        const item = (config as MultiConfig)[k as `picture_${number}`];
-        return {
-          at: parseTimeToSeconds(item.display_time),
-          path: item.path,
-          type: normalizeDisplayType(item.display_type),
-        };
-      })
+    const evs: Event[] = (config.pictures ?? [])
+      .map((item) => ({
+        at: parseTimeToSeconds(item.display_time),
+        path: item.path,
+        type: item.display_type,
+      }))
       .sort((a, b) => a.at - b.at);
 
-    return { soundPath: (config as MultiConfig).sound_path, events: evs };
+    return { soundPath: config.sound_path, events: evs };
   }, [config]);
 
   const [stack, setStack] = useState<string[]>([]);
   const [ended, setEnded] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [runId, setRunId] = useState(0);
+  const [continued, setContinued] = useState(false);
 
   const [dynamicFallback, setDynamicFallback] = useState<string | undefined>(insertFallbackPath);
 
@@ -114,6 +107,7 @@ export default function SceneBuilder({
   const restart = useCallback(
     (shouldAutoplay: boolean) => {
       setEnded(false);
+      setContinued(false);
       setIsPlaying(shouldAutoplay);
       setRunId((x) => x + 1);
 
@@ -123,10 +117,8 @@ export default function SceneBuilder({
         audio.currentTime = 0;
       }
 
-      // Reset fallback to prop value at restart
       setDynamicFallback(insertFallbackPath);
 
-      // Apply events at t=0
       let base: string[] = [];
       const zeroEvents = [...events].filter((e) => e.at <= 0);
 
@@ -202,7 +194,6 @@ export default function SceneBuilder({
         });
       }
 
-      // If empty, enforce fallback (if set)
       setStack((prev) => (prev.length === 0 && dynamicFallback ? [dynamicFallback] : prev));
     };
 
@@ -221,7 +212,8 @@ export default function SceneBuilder({
     };
   }, [events, dynamicFallback, onEnded, runId]);
 
-  if (ended && next) return <>{next}</>;
+  if (ended && next && continueOnEnd && continued) return <>{next}</>;
+  if (ended && next && !continueOnEnd) return <>{next}</>;
 
   const visibleImages = computeVisible(stack);
 
@@ -230,38 +222,45 @@ export default function SceneBuilder({
       <div className="container-fluid h-100">
         <div className="row h-100 justify-content-center">
           <div className="col-12 d-flex flex-column align-items-center justify-content-center">
-            {/* Pictures */}
             <div className="d-flex flex-row justify-content-center align-items-center gap-3 flex-wrap">
               {visibleImages.map((src, idx) => (
-                <div
-                  key={`${src}-${idx}`}
-                  className="position-relative"
-                  style={{ width: "min(420px, 90vw)", height: "min(420px, 70vh)" }}
-                >
-                  <Image
-                    src={src}
-                    alt={alt}
-                    fill
-                    sizes="(max-width: 768px) 90vw, 420px"
-                    priority={idx === 0}
-                    style={{ objectFit: "contain" }}
-                  />
+                <div key={`${src}-${idx}`} className="position-relative" style={{ width: "min(420px, 90vw)", height: "min(420px, 70vh)" }}>
+                  <Image src={src} alt={alt} fill sizes="(max-width: 768px) 90vw, 420px" priority={idx === 0} style={{ objectFit: "contain" }} />
                 </div>
               ))}
             </div>
 
-            {/* Controls: centered UNDER the picture(s) */}
             <div className="mt-4 d-flex flex-wrap gap-2 justify-content-center">
-              <button type="button" className="btn btn-primary" onClick={isPlaying ? pause : play}>
-                {isPlaying ? "Pozastaviť" : "Prehrať"}
-              </button>
+              {!ended && (
+                <>
+                  <button type="button" className="btn btn-primary" onClick={isPlaying ? pause : play}>
+                    {isPlaying ? "Pozastaviť" : "Prehrať"}
+                  </button>
 
-              <button type="button" className="btn btn-outline-primary" onClick={() => restart(false)}>
-                Prehrať znova
-              </button>
+                  <button type="button" className="btn btn-outline-primary" onClick={() => restart(false)}>
+                    Prehrať znova
+                  </button>
+                </>
+              )}
+
+              {ended && next && continueOnEnd && (
+                <>
+                  <button type="button" className="btn btn-success" onClick={() => setContinued(true)}>
+                    Pokračovať
+                  </button>
+                  <button type="button" className="btn btn-outline-primary" onClick={() => restart(true)}>
+                    Prehrať znova
+                  </button>
+                </>
+              )}
+
+              {ended && !next && (
+                <button type="button" className="btn btn-outline-primary" onClick={() => restart(true)}>
+                  Prehrať znova
+                </button>
+              )}
             </div>
 
-            {/* hidden audio */}
             <audio ref={audioRef} src={soundPath} preload="auto" />
           </div>
         </div>

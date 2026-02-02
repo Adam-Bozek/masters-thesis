@@ -1,0 +1,202 @@
+[
+  {
+    "questionId": 1,
+    "questionType": 1,
+    "questionText": "Ako robí kačka?",
+    "questionText2": "Čo vydáva tento zvuk?",
+    "questionAudioPath": "/sounds/testing/zoo/1.mp3",
+    "acceptedTranscripts": ["kač", "kac", "kač kač", "kac kac", "kačka"],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Kvákajúca kačka", "imagePath": "/images/testing/zoo/1-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Jazero", "imagePath": "/images/testing/zoo/1-2.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Rákosie", "imagePath": "/images/testing/zoo/1-3.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Blato", "imagePath": "/images/testing/zoo/1-4.jpg" },
+      { "answerId": 5, "isCorrect": false, "label": "Most", "imagePath": "/images/testing/zoo/1-5.jpg" },
+      { "answerId": 6, "isCorrect": false, "label": "Chlieb", "imagePath": "/images/testing/zoo/1-6.jpg" }
+    ]
+  },
+  {
+    "questionId": 2,
+    "questionType": 1,
+    "questionText": "Na ktorom obrázku je chvost?",
+    "questionAudioPath": "/sounds/testing/zoo/2.mp3",
+    "acceptedTranscripts": ["chvost", "chvostík", "chvostik", "chvostíček", "chvosticek", "chvostík malý", "chvostik maly"],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Chvost", "imagePath": "/images/testing/zoo/2-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Labka", "imagePath": "/images/testing/zoo/2-2.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Ňufák", "imagePath": "/images/testing/zoo/2-3.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Uši", "imagePath": "/images/testing/zoo/2-4.jpg" },
+      { "answerId": 5, "isCorrect": false, "label": "Oči", "imagePath": "/images/testing/zoo/2-5.jpg" },
+      { "answerId": 6, "isCorrect": false, "label": "Zuby", "imagePath": "/images/testing/zoo/2-6.jpg" }
+    ]
+  },
+  {
+    "questionId": 3,
+    "questionType": 1,
+    "questionText": "Na ktorom obrázku je jašterica?",
+    "questionAudioPath": "/sounds/testing/zoo/3.mp3",
+    "acceptedTranscripts": ["jašterica", "jasterica", "jašterička", "jastericka", "jašterka", "jasterka", "jašterička malá", "jastericka mala"],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Jašterica", "imagePath": "/images/testing/zoo/3-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Had", "imagePath": "/images/testing/zoo/3-2.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Korytnačka", "imagePath": "/images/testing/zoo/3-3.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Ryba", "imagePath": "/images/testing/zoo/3-4.jpg" },
+      { "answerId": 5, "isCorrect": false, "label": "Kapybara", "imagePath": "/images/testing/zoo/3-5.jpg" },
+      { "answerId": 6, "isCorrect": false, "label": "Zajac", "imagePath": "/images/testing/zoo/3-6.jpg" }
+    ]
+  },
+  {
+    "questionId": 4,
+    "questionType": 1,
+    "questionText": "Na ktorom obrázku je ježko?",
+    "questionAudioPath": "/sounds/testing/zoo/4.mp3",
+    "acceptedTranscripts": ["ježko", "jezko", "ježík", "jezik", "ježinko", "jezinko", "ježko malý", "jezko maly", "jež"],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Ježko", "imagePath": "/images/testing/zoo/4-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Ihla", "imagePath": "/images/testing/zoo/4-2.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Červík", "imagePath": "/images/testing/zoo/4-3.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Konár", "imagePath": "/images/testing/zoo/4-4.jpg" },
+      { "answerId": 5, "isCorrect": false, "label": "Krík", "imagePath": "/images/testing/zoo/4-5.jpg" },
+      { "answerId": 6, "isCorrect": false, "label": "Gaštan", "imagePath": "/images/testing/zoo/4-6.jpg" }
+    ]
+  },
+  {
+    "questionId": 5,
+    "questionType": 1,
+    "questionText": "Na ktorom obrázku je kosť?",
+    "questionAudioPath": "/sounds/testing/zoo/5.mp3",
+    "acceptedTranscripts": ["kosť", "kost", "kostička", "kosticka", "kostičky", "kosticky", "kosti"],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Kosť", "imagePath": "/images/testing/zoo/5-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Kameň", "imagePath": "/images/testing/zoo/5-2.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Pes", "imagePath": "/images/testing/zoo/5-3.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Dinosaurus", "imagePath": "/images/testing/zoo/5-4.jpg" },
+      { "answerId": 5, "isCorrect": false, "label": "Zuby 2", "imagePath": "/images/testing/zoo/5-5.jpg" },
+      { "answerId": 6, "isCorrect": false, "label": "Mäso", "imagePath": "/images/testing/zoo/5-6.jpg" }
+    ]
+  },
+  {
+    "questionId": 6,
+    "questionType": 1,
+    "questionText": "Na ktorom obrázku sa nachádza medveď?",
+    "questionAudioPath": "/sounds/testing/zoo/6.mp3",
+    "acceptedTranscripts": ["medveď", "medved", "medvedík", "medvedik", "macko", "maco", "medo", "medoško", "medosko", "brumko"],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Medveď", "imagePath": "/images/testing/zoo/6-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Jeleň", "imagePath": "/images/testing/zoo/6-2.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Vlk", "imagePath": "/images/testing/zoo/6-3.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Líška", "imagePath": "/images/testing/zoo/6-4.jpg" },
+      { "answerId": 5, "isCorrect": false, "label": "Syseľ", "imagePath": "/images/testing/zoo/6-5.jpg" },
+      { "answerId": 6, "isCorrect": false, "label": "Los", "imagePath": "/images/testing/zoo/6-6.jpg" }
+    ]
+  },
+  {
+    "questionId": 7,
+    "questionType": 1,
+    "questionText": "Na ktorom obrázku je tuleň?",
+    "questionAudioPath": "/sounds/testing/zoo/7.mp3",
+    "acceptedTranscripts": ["tuleň", "tulen", "tuleník", "tulenik", "tuleňko", "tulenko", "tuleňček", "tulencek"],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Tuleň", "imagePath": "/images/testing/zoo/7-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Hroch", "imagePath": "/images/testing/zoo/7-2.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Ryba", "imagePath": "/images/testing/zoo/3-4.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Nosorožec", "imagePath": "/images/testing/zoo/7-4.jpg" },
+      { "answerId": 5, "isCorrect": false, "label": "Tučniak", "imagePath": "/images/testing/zoo/7-5.jpg" },
+      { "answerId": 6, "isCorrect": false, "label": "Veľryba", "imagePath": "/images/testing/zoo/7-6.jpg" }
+    ]
+  },
+  {
+    "questionId": 8,
+    "questionType": 1,
+    "questionText": "Na ktorom obrázku je veverička?",
+    "questionAudioPath": "/sounds/testing/zoo/8.mp3",
+    "acceptedTranscripts": ["veverička", "vevericka", "veverka"],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Veverička", "imagePath": "/images/testing/zoo/8-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Strom", "imagePath": "/images/testing/zoo/8-2.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Orechy", "imagePath": "/images/testing/zoo/8-3.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Búdka", "imagePath": "/images/testing/zoo/8-4.jpg" },
+      { "answerId": 5, "isCorrect": false, "label": "Vták", "imagePath": "/images/testing/zoo/8-5.jpg" },
+      { "answerId": 6, "isCorrect": false, "label": "Potkan", "imagePath": "/images/testing/zoo/8-6.jpg" }
+    ]
+  },
+  {
+    "questionId": 9,
+    "questionType": 1,
+    "questionText": "Na ktorom obrázku je zoologická záhrada?",
+    "questionAudioPath": "/sounds/testing/zoo/9.mp3",
+    "acceptedTranscripts": ["zoo", "zoo park", "zoopark", "zoologická záhrada", "zoologicka zahrada"],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Zoologická záhrada", "imagePath": "/images/testing/zoo/9-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Les", "imagePath": "/images/testing/zoo/9-2.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Cukráreň", "imagePath": "/images/testing/zoo/9-3.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Lúka", "imagePath": "/images/testing/zoo/9-4.jpg" },
+      { "answerId": 5, "isCorrect": false, "label": "Ihrisko", "imagePath": "/images/testing/zoo/9-5.jpg" },
+      { "answerId": 6, "isCorrect": false, "label": "Jazero", "imagePath": "/images/testing/zoo/1-2.jpg" }
+    ]
+  },
+  {
+    "questionId": 10,
+    "questionType": 2,
+    "questionText": "Na ktorom obrázku sa dievčatko bojí?",
+    "questionText2": "Čo robí dievčatko?",
+    "questionAudioPath": "/sounds/testing/zoo/10-1.mp3",
+    "questionAudioPath2": "/sounds/testing/zoo/10-2.mp3",
+    "acceptedTranscripts": [
+      "dievčatko sa bojí",
+      "dievcatko sa boji",
+      "dievča sa bojí",
+      "dievca sa boji",
+      "bojí sa",
+      "boji sa",
+      "bojím sa",
+      "bojim sa",
+      "má strach",
+      "ma strach",
+      "ľaká sa",
+      "laka sa",
+      "zľakla sa",
+      "zlakla sa",
+      "straší sa",
+      "strasi sa"
+    ],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Dievčatko sa bojí", "imagePath": "/images/testing/zoo/10-1.gif" },
+      { "answerId": 2, "isCorrect": false, "label": "Dievčatko sa smeje", "imagePath": "/images/testing/zoo/10-2.gif" }
+    ]
+  },
+  {
+    "questionId": 11,
+    "questionType": 3,
+    "questionText": "O čom sme čítali?",
+    "questionAudioPath": "/sounds/testing/zoo/11.mp3",
+    "acceptedTranscripts": [
+      "o mackovi",
+      "o mackovi a mede",
+      "o mackovi a medíku",
+      "o mackovi a mediku",
+      "o medveďovi",
+      "o medvedovi",
+      "o medveďkovi",
+      "o medvedkovi",
+      "o mede",
+      "o medíku",
+      "o mediku",
+      "o sladkom mede",
+      "o sladkom medíku",
+      "o sladkom mediku"
+    ],
+    "config": {
+      // TODO: add coprrect content after recording
+      "sound_path": "/sounds/testing/zoo/story/scene.mp3",
+      "pictures": [
+        { "path": "/images/testing/zoo/story/1.jpg", "display_time": "0:00", "display_type": "insert" },
+        { "path": "/images/testing/zoo/story/2.jpg", "display_time": "0:26", "display_type": "remove_all_and_add" },
+        { "path": "/images/testing/zoo/story/3.jpg", "display_time": "1:00", "display_type": "remove_all_and_add" },
+        { "path": "/images/testing/zoo/story/4.jpg", "display_time": "1:00", "display_type": "remove_all_and_add" },
+        { "path": "/images/testing/zoo/story/5.jpg", "display_time": "1:00", "display_type": "remove_all_and_add" },
+        { "path": "/images/testing/zoo/story/6.jpg", "display_time": "1:00", "display_type": "remove_all_and_add" }
+      ]
+    }
+  }
+]
