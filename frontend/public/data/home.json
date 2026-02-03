@@ -1,10 +1,11 @@
 [
   {
     "questionId": 1,
-    "questionType": 1,
-    "questionText": "Ako robí dievča keď vzdichá?",
+    "questionType": 2,
+    "questionText": "Ako robí dievča keď si vzdyvhne?",
     "questionText2": "Čo vydáva tento zvuk?",
-    "questionAudioPath": "/sounds/testing/home/1.mp3",
+    "questionAudioPath": "/sounds/testing/home/1-1.mp3",
+    "questionAudioPath2": "/sounds/testing/home/1-2.mp3",
     "acceptedTranscripts": ["ach", "ach jaj", "ach jo", "ach ach"],
     "answers": [
       { "answerId": 1, "isCorrect": true, "label": "Vzdychajúce dievča", "imagePath": "/images/testing/home/1-1.jpg" },
@@ -17,10 +18,11 @@
   },
   {
     "questionId": 2,
-    "questionType": 1,
+    "questionType": 2,
     "questionText": "Ako robí chlapec keď sa smeje?",
     "questionText2": "Čo vydáva tento zvuk?",
-    "questionAudioPath": "/sounds/testing/home/2.mp3",
+    "questionAudioPath": "/sounds/testing/home/2-1.mp3",
+    "questionAudioPath2": "/sounds/testing/home/2-2.mp3",
     "acceptedTranscripts": ["haha", "ha ha", "hahaha", "hihi", "hihihi", "hehe", "chacha", "chachacha"],
     "answers": [
       { "answerId": 1, "isCorrect": true, "label": "Smejúci sa chlapec", "imagePath": "/images/testing/home/2-1.jpg" },
@@ -33,10 +35,11 @@
   },
   {
     "questionId": 3,
-    "questionType": 1,
+    "questionType": 2,
     "questionText": "Ako robia hodinky?",
     "questionText2": "Čo vydáva tento zvuk?",
-    "questionAudioPath": "/sounds/testing/home/3.mp3",
+    "questionAudioPath": "/sounds/testing/home/3-1.mp3",
+    "questionAudioPath2": "/sounds/testing/home/3-2.mp3",
     "acceptedTranscripts": ["tik-tak", "tik tak", "tik-tak-tik", "tik tak tik", "tik", "tak"],
     "answers": [
       { "answerId": 1, "isCorrect": true, "label": "Tikajúce hodiny", "imagePath": "/images/testing/home/3-1.jpg" },
@@ -375,9 +378,9 @@
   {
     "questionId": 24,
     "questionType": 4,
-    "questionText": "Kam dáva chlapček hračku?",
+    "questionText": "Kde sa nachádza hračka?",
     "questionAudioPath": "/sounds/testing/home/24.mp3",
     "imagePath": "/images/testing/home/24.jpg",
-    "acceptedTranscripts": ["na poličku", "na policku", "na poličke", "na policke", "na polici", "na polici hore"]
+    "acceptedTranscripts": ["na poličke", "na policke", "na poličke", "na policke", "na polici", "na polici hore"]
   }
 ]

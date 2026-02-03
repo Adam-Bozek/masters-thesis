@@ -1,10 +1,11 @@
 [
   {
     "questionId": 1,
-    "questionType": 1,
+    "questionType": 2,
     "questionText": "Ako robí zvon?",
     "questionText2": "Čo vydáva tento zvuk?",
-    "questionAudioPath": "/sounds/testing/street/1.mp3",
+    "questionAudioPath": "/sounds/testing/street/1-1.mp3",
+    "questionAudioPath2": "/sounds/testing/street/1-2.mp3",
     "acceptedTranscripts": ["bim", "bam", "bim bam", "bim-bam", "bim bam bim bam", "ding dong", "ding-dong"],
     "answers": [
       { "answerId": 1, "isCorrect": true, "label": "Bijúce zvony", "imagePath": "/images/testing/street/1-1.jpg" },
@@ -17,10 +18,11 @@
   },
   {
     "questionId": 2,
-    "questionType": 1,
+    "questionType": 2,
     "questionText": "Ako robí parný rušeň?",
     "questionText2": "Čo vydáva tento zvuk?",
-    "questionAudioPath": "/sounds/testing/street/2.mp3",
+    "questionAudioPath": "/sounds/testing/street/2-1.mp3",
+    "questionAudioPath2": "/sounds/testing/street/2-2.mp3",
     "acceptedTranscripts": ["šiši", "sisi", "ššš", "sss", "ššš ššš", "sss sss", "vlak", "vlak ide", "vlak robí ššš", "vlak robi sss"],
     "answers": [
       { "answerId": 1, "isCorrect": true, "label": "Idúci parný rušeň", "imagePath": "/images/testing/street/2-1.jpg" },
