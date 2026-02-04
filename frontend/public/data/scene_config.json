@@ -1,0 +1,172 @@
+{
+  "marketpace": [
+    {
+      "sound_path": "/sounds/testing/marketpace/scenes/game_intro.mp3",
+      "pictures": [
+        { "path": "/images/testing/marketpace/scenes/game_intro_1.gif", "display_time": "0:00", "display_type": "insert" },
+        { "path": "/images/testing/marketpace/scenes/game_intro_2.gif", "display_time": "0:00", "display_type": "remove_all_and_add" },
+        { "path": "/images/testing/marketpace/scenes/game_intro_3.jpg", "display_time": "0:00", "display_type": "add" },
+        { "path": "/images/testing/marketpace/scenes/game_intro_4.jpg", "display_time": "0:00", "display_type": "add" }
+      ]
+    },
+    {
+      "sound_path": "/sounds/testing/marketpace/scenes/intro.mp3",
+      "pictures": [
+        { "path": "/images/testing/marketpace/scenes/game_intro_2.gif", "display_time": "0:00", "display_type": "insert" },
+        { "path": "/images/testing/marketpace/scenes/intro_1.jpg", "display_time": "0:00", "display_type": "add" }
+      ]
+    },
+    {
+      "sound_path": "/sounds/testing/marketpace/scenes/midscene.mp3",
+      "pictures": [
+        { "path": "/images/testing/marketpace/scenes/game_intro_2.gif", "display_time": "0:00", "display_type": "insert" },
+        { "path": "/images/testing/marketpace/scenes/intro_1.jpg", "display_time": "0:00", "display_type": "add" }
+      ]
+    },
+    {
+      "sound_path": "/sounds/testing/marketpace/scenes/outro.mp3",
+      "pictures": [
+        { "path": "/images/testing/marketpace/scenes/outro_1.gif", "display_time": "0:00", "display_type": "insert" },
+        { "path": "/images/testing/marketpace/scenes/intro_1.jpg", "display_time": "0:00", "display_type": "add" }
+      ]
+    }
+  ],
+  "mountains": [
+    {
+      "sound_path": "/sounds/testing/mountains/scenes/reminder.mp3",
+      "pictures": [
+        { "path": "/images/testing/mountains/scenes/reminder_1.gif", "display_time": "0:00", "display_type": "insert" },
+        { "path": "/images/testing/mountains/scenes/reminder_2.gif", "display_time": "0:00", "display_type": "remove_all_and_add" },
+        { "path": "/images/testing/mountains/scenes/reminder_3.jpg", "display_time": "0:00", "display_type": "add" },
+        { "path": "/images/testing/mountains/scenes/reminder_4.jpg", "display_time": "0:00", "display_type": "remove" },
+        { "path": "/images/testing/mountains/scenes/reminder_5.jpg", "display_time": "0:00", "display_type": "remove" }
+      ]
+    },
+    {
+      "sound_path": "/sounds/testing/mountains/scenes/intro.mp3",
+      "pictures": [
+        { "path": "/images/testing/mountains/scenes/intro_1.gif", "display_time": "0:00", "display_type": "insert" },
+        { "path": "/images/testing/mountains/scenes/intro_2.jpg", "display_time": "0:00", "display_type": "add" }
+      ]
+    },
+    {
+      "sound_path": "/sounds/testing/mountains/scenes/midscene.mp3",
+      "pictures": [
+        { "path": "/images/testing/mountains/scenes/midscene_1.gif", "display_time": "0:00", "display_type": "insert" },
+        { "path": "/images/testing/mountains/scenes/intro_2.jpg", "display_time": "0:00", "display_type": "add" }
+      ]
+    },
+    {
+      "sound_path": "/sounds/testing/mountains/scenes/outro.mp3",
+      "pictures": [
+        { "path": "/images/testing/mountains/scenes/outro_1.gif", "display_time": "0:00", "display_type": "insert" },
+        { "path": "/images/testing/mountains/scenes/intro_2.jpg", "display_time": "0:00", "display_type": "add" }
+      ]
+    }
+  ],
+  "zoo": [
+    {
+      "sound_path": "/sounds/testing/zoo/scenes/reminder.mp3",
+      "pictures": [
+        { "path": "/images/testing/zoo/scenes/reminder_1.gif", "display_time": "0:00", "display_type": "insert" },
+        { "path": "/images/testing/zoo/scenes/reminder_2.gif", "display_time": "0:00", "display_type": "remove_all_and_add" },
+        { "path": "/images/testing/zoo/scenes/reminder_3.jpg", "display_time": "0:00", "display_type": "add" },
+        { "path": "/images/testing/zoo/scenes/reminder_4.jpg", "display_time": "0:00", "display_type": "remove" },
+        { "path": "/images/testing/zoo/scenes/reminder_5.jpg", "display_time": "0:00", "display_type": "remove" },
+        { "path": "/images/testing/zoo/scenes/reminder_6.jpg", "display_time": "0:00", "display_type": "remove" }
+      ]
+    },
+    {
+      "sound_path": "/sounds/testing/zoo/scenes/intro.mp3",
+      "pictures": [
+        { "path": "/images/testing/zoo/scenes/intro_1.gif", "display_time": "0:00", "display_type": "insert" },
+        { "path": "/images/testing/zoo/scenes/intro_2.jpg", "display_time": "0:00", "display_type": "add" }
+      ]
+    },
+    {
+      "sound_path": "/sounds/testing/zoo/scenes/midscene.mp3",
+      "pictures": [
+        { "path": "/images/testing/zoo/scenes/intro_1.gif", "display_time": "0:00", "display_type": "insert" },
+        { "path": "/images/testing/zoo/scenes/intro_2.jpg", "display_time": "0:00", "display_type": "add" }
+      ]
+    },
+    {
+      "sound_path": "/sounds/testing/zoo/scenes/outro.mp3",
+      "pictures": [
+        { "path": "/images/testing/zoo/scenes/outro_1.gif", "display_time": "0:00", "display_type": "insert" },
+        { "path": "/images/testing/zoo/scenes/intro_2.jpg", "display_time": "0:00", "display_type": "add" }
+      ]
+    }
+  ],
+  "street": [
+    {
+      "sound_path": "/sounds/testing/street/scenes/reminder.mp3",
+      "pictures": [
+        { "path": "/images/testing/street/scenes/reminder_1.gif", "display_time": "0:00", "display_type": "insert" },
+        { "path": "/images/testing/street/scenes/reminder_2.gif", "display_time": "0:00", "display_type": "remove_all_and_add" },
+        { "path": "/images/testing/street/scenes/reminder_3.jpg", "display_time": "0:00", "display_type": "add" },
+        { "path": "/images/testing/street/scenes/reminder_4.jpg", "display_time": "0:00", "display_type": "remove" },
+        { "path": "/images/testing/street/scenes/reminder_5.jpg", "display_time": "0:00", "display_type": "remove" },
+        { "path": "/images/testing/street/scenes/reminder_6.jpg", "display_time": "0:00", "display_type": "remove" },
+        { "path": "/images/testing/street/scenes/reminder_7.jpg", "display_time": "0:00", "display_type": "remove" }
+      ]
+    },
+    {
+      "sound_path": "/sounds/testing/street/scenes/intro.mp3",
+      "pictures": [
+        { "path": "/images/testing/street/scenes/intro_1.gif", "display_time": "0:00", "display_type": "insert" },
+        { "path": "/images/testing/street/scenes/intro_2.jpg", "display_time": "0:00", "display_type": "add" }
+      ]
+    },
+    {
+      "sound_path": "/sounds/testing/street/scenes/midscene.mp3",
+      "pictures": [
+        { "path": "/images/testing/street/scenes/intro_1.gif", "display_time": "0:00", "display_type": "insert" },
+        { "path": "/images/testing/street/scenes/intro_2.jpg", "display_time": "0:00", "display_type": "add" }
+      ]
+    },
+    {
+      "sound_path": "/sounds/testing/street/scenes/outro.mp3",
+      "pictures": [
+        { "path": "/images/testing/street/scenes/outro_1.gif", "display_time": "0:00", "display_type": "insert" },
+        { "path": "/images/testing/street/scenes/intro_2.jpg", "display_time": "0:00", "display_type": "add" }
+      ]
+    }
+  ],
+  "home": [
+    {
+      "sound_path": "/sounds/testing/home/scenes/reminder.mp3",
+      "pictures": [
+        { "path": "/images/testing/home/scenes/reminder_1.gif", "display_time": "0:00", "display_type": "insert" },
+        { "path": "/images/testing/home/scenes/reminder_2.gif", "display_time": "0:00", "display_type": "remove_all_and_add" },
+        { "path": "/images/testing/home/scenes/reminder_3.jpg", "display_time": "0:00", "display_type": "add" },
+        { "path": "/images/testing/home/scenes/reminder_4.jpg", "display_time": "0:00", "display_type": "remove" },
+        { "path": "/images/testing/home/scenes/reminder_5.jpg", "display_time": "0:00", "display_type": "remove" },
+        { "path": "/images/testing/home/scenes/reminder_6.jpg", "display_time": "0:00", "display_type": "remove" },
+        { "path": "/images/testing/home/scenes/reminder_7.jpg", "display_time": "0:00", "display_type": "remove" },
+        { "path": "/images/testing/home/scenes/reminder_8.jpg", "display_time": "0:00", "display_type": "remove" }
+      ]
+    },
+    {
+      "sound_path": "/sounds/testing/home/scenes/intro.mp3",
+      "pictures": [
+        { "path": "/images/testing/home/scenes/intro_1.gif", "display_time": "0:00", "display_type": "insert" },
+        { "path": "/images/testing/home/scenes/intro_2.jpg", "display_time": "0:00", "display_type": "add" }
+      ]
+    },
+    {
+      "sound_path": "/sounds/testing/home/scenes/midscene.mp3",
+      "pictures": [
+        { "path": "/images/testing/home/scenes/intro_1.gif", "display_time": "0:00", "display_type": "insert" },
+        { "path": "/images/testing/home/scenes/intro_2.jpg", "display_time": "0:00", "display_type": "add" }
+      ]
+    },
+    {
+      "sound_path": "/sounds/testing/home/scenes/outro.mp3",
+      "pictures": [
+        { "path": "/images/testing/home/scenes/outro_1.gif", "display_time": "0:00", "display_type": "insert" },
+        { "path": "/images/testing/home/scenes/outro_2.jpg", "display_time": "0:00", "display_type": "add" }
+      ]
+    }
+  ]
+}
