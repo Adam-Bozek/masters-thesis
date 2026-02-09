@@ -2,8 +2,6 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-
-// UPDATE THIS IMPORT PATH TO YOUR REAL LOCATION
 import axiosInstance from "@/utilities/AxiosInstance";
 
 type StorageType = "local_storage" | "database";
@@ -57,7 +55,7 @@ type Props = {
   storageType: StorageType;
 
   sessionId?: number;
-  answersPath?: (sessionId: number) => string; // default below
+  answersPath?: (sessionId: number) => string;
 
   debug?: boolean;
   onComplete?: (incorrectQuestions: Question[]) => void;
@@ -65,15 +63,27 @@ type Props = {
 
 const defaultAnswersPath = (id: number) => `/sessions/${id}/answers`;
 
-function shuffle<T>(arr: T[], seed: number): T[] {
+// Crypto shuffle (no seed, always fresh)
+function cryptoRandInt(maxExclusive: number): number {
+  if (maxExclusive <= 1) return 0;
+  const cryptoObj = globalThis.crypto;
+  if (!cryptoObj?.getRandomValues) return Math.floor(Math.random() * maxExclusive);
+
+  const range = 0xffffffff;
+  const limit = Math.floor(range / maxExclusive) * maxExclusive; // rejection sampling
+  const buf = new Uint32Array(1);
+
+  while (true) {
+    cryptoObj.getRandomValues(buf);
+    const x = buf[0] >>> 0;
+    if (x < limit) return x % maxExclusive;
+  }
+}
+
+function shuffleRandom<T>(arr: T[]): T[] {
   const a = [...arr];
-  let s = seed >>> 0;
-  const rand = () => {
-    s = (s * 1664525 + 1013904223) >>> 0;
-    return s / 2 ** 32;
-  };
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
+    const j = cryptoRandInt(i + 1);
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
@@ -274,6 +284,9 @@ export default function Phase3Testing({
   debug = false,
   onComplete,
 }: Props) {
+  const useLocal = storageType === "local_storage";
+  const useDb = storageType === "database";
+
   const [loading, setLoading] = useState(true);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [order, setOrder] = useState<number[]>([]);
@@ -282,7 +295,6 @@ export default function Phase3Testing({
   const [saveBusy, setSaveBusy] = useState(false);
 
   const [activeIndex, setActiveIndex] = useState(0);
-
   const [phase, setPhase] = useState<"nahravanie" | "kontrola" | "uprava">("nahravanie");
   const [editableText, setEditableText] = useState("");
 
@@ -296,9 +308,9 @@ export default function Phase3Testing({
   const touchStartY = useRef<number | null>(null);
 
   const scopeKey = useMemo(() => {
-    const sid = storageType === "database" ? String(sessionId ?? "db") : "local";
-    return `phase3:${categoryId}:${sid}`;
-  }, [categoryId, storageType, sessionId]);
+    // only relevant for local storage mode
+    return `phase3:${categoryId}:${questionnaireConfigPath}`;
+  }, [categoryId, questionnaireConfigPath]);
 
   const uiAnsweredKey = `${scopeKey}:answered`;
   const uiIncorrectKey = `${scopeKey}:incorrect`;
@@ -315,16 +327,17 @@ export default function Phase3Testing({
   const answeredCount = answeredIds.size;
   const progressPct = total ? Math.round((answeredCount / total) * 100) : 0;
 
-  const readUiState = () => {
+  const readUiStateLocal = () => {
+    if (!useLocal) return { a: new Set<number>(), i: [] as number[] };
     const aRaw = localStorage.getItem(uiAnsweredKey);
     const iRaw = localStorage.getItem(uiIncorrectKey);
-
     const a = aRaw ? new Set<number>(JSON.parse(aRaw)) : new Set<number>();
     const i = iRaw ? (JSON.parse(iRaw) as number[]) : [];
     return { a, i };
   };
 
-  const persistUiState = (a: Set<number>, inc: Question[]) => {
+  const persistUiStateLocal = (a: Set<number>, inc: Question[]) => {
+    if (!useLocal) return;
     localStorage.setItem(uiAnsweredKey, JSON.stringify(Array.from(a)));
     localStorage.setItem(uiIncorrectKey, JSON.stringify(inc.map((q) => q.questionId)));
   };
@@ -333,6 +346,7 @@ export default function Phase3Testing({
     if (activeIndex >= remaining.length) setActiveIndex(Math.max(0, remaining.length - 1));
   }, [remaining.length, activeIndex]);
 
+  // Load JSON + ALWAYS randomize order (no persistence)
   useEffect(() => {
     const load = async () => {
       setLoading(true);
@@ -342,34 +356,21 @@ export default function Phase3Testing({
 
         const valid = Array.isArray(data) ? data.filter((q: any) => typeof q?.questionId === "number" && typeof q?.questionType === "number") : [];
 
-        const seedKey = `${scopeKey}:seed`;
-        const orderKey = `${scopeKey}:order`;
-
-        let seed = Number(localStorage.getItem(seedKey));
-        if (!Number.isFinite(seed)) {
-          seed = Math.floor(Math.random() * 1_000_000_000);
-          localStorage.setItem(seedKey, String(seed));
-        }
-
-        const savedOrderRaw = localStorage.getItem(orderKey);
-        const computedOrder = savedOrderRaw
-          ? (JSON.parse(savedOrderRaw) as number[])
-          : shuffle(
-              valid.map((q: any) => q.questionId),
-              seed,
-            );
-
-        localStorage.setItem(orderKey, JSON.stringify(computedOrder));
+        const computedOrder = shuffleRandom(valid.map((q: any) => q.questionId));
 
         setQuestions(valid as Question[]);
         setOrder(computedOrder);
 
-        // Always load UI state (works for both local and db modes)
-        const { a, i } = readUiState();
-        const incorrectQs = valid.filter((q: any) => i.includes(q.questionId));
+        if (useLocal) {
+          const { a, i } = readUiStateLocal();
+          const incorrectQs = valid.filter((q: any) => i.includes(q.questionId));
+          setAnsweredIds(a);
+          setIncorrect(incorrectQs as Question[]);
+        } else {
+          setAnsweredIds(new Set());
+          setIncorrect([]);
+        }
 
-        setAnsweredIds(a);
-        setIncorrect(incorrectQs as Question[]);
         setActiveIndex(0);
       } catch (e) {
         console.error("[Phase3] zlyhalo načítanie JSON", e);
@@ -382,13 +383,14 @@ export default function Phase3Testing({
         setLoading(false);
       }
     };
+
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [questionnaireConfigPath, scopeKey]);
+  }, [questionnaireConfigPath, categoryId, storageType]);
 
-  // DB hydration merges with UI local state
+  // DB hydration (NO localStorage usage)
   useEffect(() => {
-    if (storageType !== "database") return;
+    if (!useDb) return;
     if (!sessionId) return;
     if (!questions.length) return;
     if (!order.length) return;
@@ -399,40 +401,19 @@ export default function Phase3Testing({
       const raw = res?.data;
       const rows = Array.isArray(raw) ? raw : Array.isArray(raw?.answers) ? raw.answers : [];
 
-      const qById = new Map<number, Question>(questions.map((q) => [q.questionId, q]));
-
-      const { a: localAnswered, i: localIncorrectIds } = readUiState();
-      const nextAnswered = new Set<number>(localAnswered);
-      const nextIncorrectIds = new Set<number>(localIncorrectIds);
-
+      const nextAnswered = new Set<number>();
       for (const r of rows) {
         if (Number(r?.category_id) !== Number(categoryId)) continue;
         const qn = Number(r?.question_number);
         if (!Number.isFinite(qn)) continue;
-
         nextAnswered.add(qn);
-
-        const q = qById.get(qn);
-        if (!q) continue;
-
-        const st = String(r?.answer_state ?? "").toLowerCase();
-        const isCorrect = st === "1" || st === "true";
-
-        // only meaningfully tracked for types 1/2 (types 3/4 incorrect should still be saved in DB)
-        if (!isCorrect && q.questionType !== 3 && q.questionType !== 4) nextIncorrectIds.add(q.questionId);
       }
 
-      const nextIncorrect = Array.from(nextIncorrectIds)
-        .map((id) => qById.get(id))
-        .filter(Boolean) as Question[];
-
       setAnsweredIds(nextAnswered);
-      setIncorrect(nextIncorrect);
-      persistUiState(nextAnswered, nextIncorrect);
+      setIncorrect([]); // cannot reconstruct incorrect Type 1/2 because you intentionally do not save them
       setActiveIndex(0);
     })().catch((e) => console.error("[Phase3] zlyhala hydratácia", e));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageType, sessionId, categoryId, questions.length, order.length]);
+  }, [useDb, sessionId, categoryId, questions.length, order.length, answersPath]);
 
   useEffect(() => {
     if (!activeQ) return;
@@ -519,25 +500,20 @@ export default function Phase3Testing({
     await axiosInstance.post(url, payload);
   };
 
-  // IMPORTANT: for QuestionType 1/2 incorrect -> NO POST (send nothing)
+  // Type 1/2 incorrect -> NO POST (send nothing)
   const evaluateAndFinalize = async (q: Question, userText: string) => {
     const normUser = normalizeTranscript(userText);
     const accepted = (q.acceptedTranscripts ?? []).map(normalizeTranscript);
     const isCorrect = accepted.includes(normUser);
 
     const isBoolQuestion = q.questionType === 3 || q.questionType === 4;
-
-    // Persist only:
-    // - type 3/4 always
-    // - type 1/2 only if correct
     const shouldPersistResult = isBoolQuestion || isCorrect;
 
-    // Build payload only if we will persist
     const payload: SavePayload | null = shouldPersistResult
       ? {
           category_id: categoryId,
           question_number: q.questionId,
-          answer_state: isBoolQuestion ? String(isCorrect) : "1", // type 1/2 only reaches here when correct
+          answer_state: isBoolQuestion ? String(isCorrect) : "1",
           user_answer: userText || null,
         }
       : null;
@@ -545,15 +521,13 @@ export default function Phase3Testing({
     setSaveBusy(true);
     try {
       if (payload) {
-        if (storageType === "local_storage") saveLocalResult(payload);
+        if (useLocal) saveLocalResult(payload);
         else await saveDbResult(payload);
       }
 
-      // Always mark answered in UI
       const nextAnswered = new Set(answeredIds);
       nextAnswered.add(q.questionId);
 
-      // Track incorrect only for type 1/2 incorrect
       let nextIncorrect = incorrect;
       if (!isBoolQuestion && !isCorrect) {
         if (!incorrect.some((x) => x.questionId === q.questionId)) nextIncorrect = [...incorrect, q];
@@ -561,7 +535,8 @@ export default function Phase3Testing({
 
       setAnsweredIds(nextAnswered);
       setIncorrect(nextIncorrect);
-      persistUiState(nextAnswered, nextIncorrect);
+
+      if (useLocal) persistUiStateLocal(nextAnswered, nextIncorrect);
 
       const nextRemainingCount = remaining.length - 1;
       if (nextRemainingCount <= 0) onComplete?.(nextIncorrect);
@@ -611,6 +586,19 @@ export default function Phase3Testing({
     else goNext();
   };
 
+  if (useDb && !sessionId) {
+    return (
+      <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white p-3 text-center">
+        <div>
+          <div className="fw-semibold" style={{ fontSize: "1.25rem" }}>
+            Chýba sessionId
+          </div>
+          <div className="text-muted small">storageType=database vyžaduje sessionId</div>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white">
@@ -656,7 +644,6 @@ export default function Phase3Testing({
 
   return (
     <div className="position-fixed top-0 start-0 w-100 h-100 bg-white" style={{ overflow: "hidden" }}>
-      {/* Top progress */}
       <div className="w-100 px-2" style={{ paddingTop: 6 }}>
         <div className="d-flex align-items-center gap-2">
           <div className="progress flex-grow-1" style={{ height: 8, borderRadius: 999 }}>
@@ -675,10 +662,8 @@ export default function Phase3Testing({
         </div>
       </div>
 
-      {/* Hidden audio */}
       <audio ref={audioRef} src={audioSrc} preload="auto" style={{ display: "none" }} />
 
-      {/* Main */}
       <div
         className="w-100 h-100"
         onTouchStart={onTouchStart}
@@ -689,7 +674,6 @@ export default function Phase3Testing({
           flexDirection: "column",
         }}
       >
-        {/* Header row: question + sound */}
         <div className="w-100 px-2" style={{ paddingTop: 10, paddingBottom: 6 }}>
           <div className="d-flex align-items-center justify-content-center" style={{ maxWidth: 1280, margin: "0 auto" }}>
             <div className="d-flex align-items-center justify-content-between w-100" style={{ gap: 12, flexWrap: "wrap" }}>
@@ -712,9 +696,7 @@ export default function Phase3Testing({
           </div>
         </div>
 
-        {/* Content area */}
         <div className="w-100 flex-grow-1" style={{ position: "relative" }}>
-          {/* Side arrows */}
           <button
             type="button"
             aria-label="Predchádzajúca"
@@ -769,14 +751,7 @@ export default function Phase3Testing({
                 <SceneFull config={(activeQ as any).config} audioTime={audioTime} />
               </div>
             ) : stimulusImage ? (
-              <div
-                style={{
-                  position: "relative",
-                  width: "min(86vw, 1100px)",
-                  height: "52dvh", // smaller
-                  maxHeight: "52dvh",
-                }}
-              >
+              <div style={{ position: "relative", width: "min(86vw, 1100px)", height: "52dvh", maxHeight: "52dvh" }}>
                 <Image
                   src={stimulusImage}
                   alt=""
@@ -792,10 +767,8 @@ export default function Phase3Testing({
           </div>
         </div>
 
-        {/* Bottom controls */}
         <div className="w-100 px-2" style={{ paddingTop: 10, paddingBottom: 10 }}>
           <div className="d-flex flex-column align-items-center" style={{ maxWidth: 1280, margin: "0 auto", gap: 10 }}>
-            {/* Transcript bigger and above buttons */}
             {!showEditInput ? (
               <div className="w-100 text-center" style={{ minHeight: 40 }}>
                 <div className="text-muted" style={{ fontSize: 16, marginBottom: 2 }}>
@@ -827,7 +800,6 @@ export default function Phase3Testing({
               </div>
             )}
 
-            {/* Mic buttons */}
             <div className="d-flex flex-wrap justify-content-center gap-2">
               <button
                 type="button"
@@ -868,7 +840,6 @@ export default function Phase3Testing({
 
             {!supported && <div className="text-danger small text-center">Tento prehliadač nepodporuje rozpoznávanie reči.</div>}
 
-            {/* After stop */}
             {phase === "kontrola" && (
               <div className="d-flex flex-wrap justify-content-center gap-2">
                 <button

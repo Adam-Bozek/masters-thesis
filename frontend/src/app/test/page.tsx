@@ -32,7 +32,7 @@ export default function Page() {
   return <SceneBuilder config={scenes[idx]} onComplete={() => setIdx((v) => v + 1)} onSkip={() => setIdx((v) => v + 1)} debug />;
 }
 */
-
+/*
 "use client";
 
 import { useState } from "react";
@@ -45,11 +45,54 @@ export default function Page() {
     <Phase3Testing
       questionnaireConfigPath="/data/test/test1.json"
       categoryId={1}
-      sessionId={1}
+      sessionId={2}
       storageType="database"
       onComplete={(incorrectQuestions) => {
         console.log("Phase 3 done. Incorrect for next phase:", incorrectQuestions);
         setIncorrect(incorrectQuestions);
+      }}
+    />
+  );
+}
+*/
+
+"use client";
+
+import React, { useState } from "react";
+import Phase3Testing from "@/components/private/Phase3Testing";
+import Phase5Testing from "@/components/private/Phase5Testing";
+
+export default function Phase3To5Flow() {
+  const [phase, setPhase] = useState<3 | 5>(3);
+  const [wrongQuestions, setWrongQuestions] = useState<any[]>([]);
+
+  const storageType = "database" as const; // or "local_storage"
+  const categoryId = 1;
+  const sessionId = 8; // required for database mode
+
+  if (phase === 3) {
+    return (
+      <Phase3Testing
+        questionnaireConfigPath="/data/test/test1.json"
+        categoryId={categoryId}
+        storageType={storageType}
+        sessionId={storageType === "database" ? sessionId : undefined}
+        onComplete={(incorrect) => {
+          setWrongQuestions(incorrect);
+          setPhase(5);
+        }}
+      />
+    );
+  }
+
+  return (
+    <Phase5Testing
+      wrongQuestions={wrongQuestions}
+      categoryId={categoryId}
+      storageType={storageType}
+      sessionId={storageType === "database" ? sessionId : undefined}
+      onComplete={() => {
+        // optional: route / show "done"
       }}
     />
   );
