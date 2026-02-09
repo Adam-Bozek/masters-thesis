@@ -46,8 +46,6 @@ const Header = () => {
           </Navbar>
         </div>
       </header>
-
-      {showScene && <SceneBuilder config={config} autoplay next={<div>Next content</div>} />}
     </>
   );
 };

@@ -1,4 +1,4 @@
-"use client";
+/*"use client";
 
 import React, { useMemo, useState } from "react";
 import SceneBuilder, { SceneConfig } from "../../components/private/SceneBuilder";
@@ -30,4 +30,27 @@ export default function Page() {
   }
 
   return <SceneBuilder config={scenes[idx]} onComplete={() => setIdx((v) => v + 1)} onSkip={() => setIdx((v) => v + 1)} debug />;
+}
+*/
+
+"use client";
+
+import { useState } from "react";
+import Phase3Testing from "@/components/private/Phase3Testing";
+
+export default function Page() {
+  const [incorrect, setIncorrect] = useState<any[]>([]);
+
+  return (
+    <Phase3Testing
+      questionnaireConfigPath="/data/test/test1.json"
+      categoryId={1}
+      sessionId={1}
+      storageType="database"
+      onComplete={(incorrectQuestions) => {
+        console.log("Phase 3 done. Incorrect for next phase:", incorrectQuestions);
+        setIncorrect(incorrectQuestions);
+      }}
+    />
+  );
 }
