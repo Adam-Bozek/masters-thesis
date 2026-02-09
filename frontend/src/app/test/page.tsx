@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import SceneBuilder, { SceneConfig } from "../../components/private/SceneBuilder2";
+import SceneBuilder, { SceneConfig } from "../../components/private/SceneBuilder";
 
 export default function Page() {
   const scenes = useMemo<SceneConfig[]>(
