@@ -1,25 +1,25 @@
 -- Check if the user exists before creating it
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${PG_API_USER}') THEN
-        CREATE USER "${PG_API_USER}" WITH ENCRYPTED PASSWORD '${PG_API_PASSWORD}';
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${APP_USER}') THEN
+        CREATE USER "${APP_USER}" WITH ENCRYPTED PASSWORD '${APP_PASSWORD}';
     END IF;
 END $$;
 
 -- Ensure the admin user has full privileges
-ALTER ROLE "${PG_ADMIN_USER}" WITH SUPERUSER;
+ALTER ROLE "${POSTGRES_USER}" WITH SUPERUSER;
 
 -- Grant permissions to the API user
-GRANT CONNECT ON DATABASE "${PG_DATABASE}" TO "${PG_API_USER}";
-GRANT USAGE ON SCHEMA public TO "${PG_API_USER}";
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO "${PG_API_USER}";
-GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO "${PG_API_USER}";
+GRANT CONNECT ON DATABASE "${POSTGRES_DB}" TO "${APP_USER}";
+GRANT USAGE ON SCHEMA public TO "${APP_USER}";
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO "${APP_USER}";
+GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO "${APP_USER}";
 
 -- Ensure permissions apply to future tables and sequences
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "${PG_API_USER}";
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "${APP_USER}";
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
-GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO "${PG_API_USER}";
+GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO "${APP_USER}";
 
 -- Create the users table if it doesn't exist
 CREATE TABLE IF NOT EXISTS users (
@@ -44,8 +44,8 @@ INSERT INTO test_categories (name, question_count) VALUES
   ('Marketplace', 16),
   ('Mountains', 8),
   ('Zoo', 11),
-  ('Home', 24),
-  ('Street', 12),
+  ('Home', 25),
+  ('Street', 13),
   ('Parent_answerd', 25)
 ON CONFLICT (name) DO NOTHING;
 
@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS user_test_answers (
 
     question_number INTEGER NOT NULL,
     answer_state TEXT CHECK (
+        -- 1 = understands and speaks, 2 understands, 3 does not understand, true = yes, false = no
         answer_state IN ('1', '2', '3', 'true', 'false')
     ) NOT NULL,
     user_answer TEXT,
@@ -99,4 +100,4 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
     user_test_sessions,
     session_test_categories,
     user_test_answers
-TO "${PG_API_USER}";
+TO "${APP_USER}";

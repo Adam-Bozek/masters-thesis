@@ -1,28 +1,30 @@
-# ---------- Build Phase ----------
-FROM node:25.3.0-trixie-slim AS build
-
+# ---------- Build ----------
+FROM node:25.6.0-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 COPY . .
 RUN npm run build
 
-# ---------- Production Phase ----------
-FROM nginx:1.29.4-trixie
 
-# Copy nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# ---------- Runtime ----------
+FROM nginx:1.29.5-alpine-slim
 
-# Install Node.js to run Next.js
-RUN apt-get update && apt-get install -y nodejs npm && rm -rf /var/lib/apt/lists/*
+# Install Node + tini on Alpine
+# (use apk; no DEBIAN_FRONTEND; no apt-get; no glibc tarballs)
+RUN apk add --no-cache nodejs npm tini
 
 WORKDIR /app
-COPY --from=build /app ./
+
+# nginx config (compose bind-mount can override)
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# app files
+COPY --from=build /app /app
 
 ENV NODE_ENV=production
-EXPOSE 80 3000
+EXPOSE 80 443 3000
 
-# Start Next.js first, wait for it, then start Nginx
-CMD sh -c "npm run start -- -H 0.0.0.0 -p 3000 & \
-  echo 'Waiting for Next.js...' && sleep 1 && \
-  nginx -g 'daemon off;'"
+# Run Next in background and nginx in foreground; tini handles signals properly
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["sh", "-lc", "npm run start -- -H 0.0.0.0 -p 3000 & next_pid=$!; nginx -g 'daemon off;' & nginx_pid=$!; wait -n $next_pid $nginx_pid"]

@@ -42,6 +42,7 @@ auth_bp.route("/logout-all", methods=["POST"])(logout_all)
 auth_bp.route("/me", methods=["GET"])(me)
 auth_bp.route("/test", methods=["GET"])(test_route)
 
+# ---- Test session routes ----
 test_bp.route("/sessions", methods=["POST"])(create_session)
 test_bp.route("/sessions", methods=["GET"])(list_sessions)
 test_bp.route("/sessions/<int:session_id>", methods=["GET"])(get_session)

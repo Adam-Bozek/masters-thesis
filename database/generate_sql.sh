@@ -3,7 +3,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PARENT_DIR="$(dirname "$SCRIPT_DIR")"
-ENV_FILE="$PARENT_DIR/.env"
+ENV_FILE="$PARENT_DIR/database/.env"
 
 if [ ! -f "$ENV_FILE" ]; then
     echo "ERROR: .env file not found in parent directory: $ENV_FILE"
