@@ -10,16 +10,6 @@ import type { SceneConfig } from "./SceneBuilder";
 
 const Header = () => {
   const { user, logout } = useAuth();
-  const [showScene, setShowScene] = useState(false);
-
-  const config = {
-    sound_path: "/sounds/testing/zoo/scene.mp3",
-    pictures: [
-      { path: "/images/1.jpg", display_time: "0:00", display_type: "insert" },
-      { path: "/images/2.jpg", display_time: "0:23", display_type: "add" },
-      { path: "/images/3.jpg", display_time: "1:00", display_type: "remove_all_and_add" },
-    ],
-  } as const satisfies SceneConfig;
 
   return (
     <>
@@ -34,7 +24,7 @@ const Header = () => {
 
             <Navbar.Collapse id="main-navbar" className="justify-content-md-end">
               <div className="d-flex flex-column flex-md-row gap-2 mt-3 mt-md-0">
-                <Button variant="primary" onClick={() => setShowScene(true)}>
+                <Button variant="primary" href="/marketplace">
                   Nová hra
                 </Button>
 
