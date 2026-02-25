@@ -179,7 +179,7 @@
     "questionId": 11,
     "questionType": 2,
     "questionText": "Na ktorom obrázku ujo opravuje auto?",
-    "questionText2": "Čo robí ujo s autom?",
+    "questionText2": "Čo robí ujo?",
     "questionAudioPath": "/sounds/testing/street/11-1.mp3",
     "questionAudioPath2": "/sounds/testing/street/11-2.mp3",
     "acceptedTranscripts": [

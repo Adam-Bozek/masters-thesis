@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS test_categories (
 -- Populate once
 INSERT INTO test_categories (name, question_count) VALUES
   ('Marketplace', 16),
-  ('Mountains', 8),
+  ('Mountains', 7),
   ('Zoo', 11),
   ('Home', 25),
   ('Street', 13),

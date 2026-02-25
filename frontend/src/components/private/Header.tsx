@@ -24,7 +24,7 @@ const Header = () => {
 
             <Navbar.Collapse id="main-navbar" className="justify-content-md-end">
               <div className="d-flex flex-column flex-md-row gap-2 mt-3 mt-md-0">
-                <Button variant="primary" href="/marketplace">
+                <Button variant="primary" href="/demo">
                   Nová hra
                 </Button>
 

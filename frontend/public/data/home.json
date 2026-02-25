@@ -278,20 +278,20 @@
   {
     "questionId": 19,
     "questionType": 2,
-    "questionText": "Na ktorom obrázku chlapček plače?",
-    "questionText2": "Čo robí chlapček?",
+    "questionText": "Na ktorom obrázku dievčatko plače?",
+    "questionText2": "Čo robí dievčatko?",
     "questionAudioPath": "/sounds/testing/home/19-1.mp3",
     "questionAudioPath2": "/sounds/testing/home/19-2.mp3",
-    "acceptedTranscripts": ["chlapček plače", "chlapcek place", "chlapcek placa", "plače", "place", "placa", "reva", "reve"],
+    "acceptedTranscripts": ["dievčatko plače", "dievcatko place", "dievcatko placa", "plače", "place", "placa", "reva", "reve"],
     "answers": [
-      { "answerId": 1, "isCorrect": true, "label": "Chlapček plače", "imagePath": "/images/testing/home/19-1.gif" },
-      { "answerId": 2, "isCorrect": false, "label": "Chlapček sa hrá s autom", "imagePath": "/images/testing/home/19-2.gif" }
+      { "answerId": 1, "isCorrect": true, "label": "Dievčatko plače", "imagePath": "/images/testing/home/19-1.gif" },
+      { "answerId": 2, "isCorrect": false, "label": "Dievčatko sa hrá s autom", "imagePath": "/images/testing/home/19-2.gif" }
     ]
   },
   {
     "questionId": 20,
     "questionType": 2,
-    "questionText": "Na ktorom obrázku sa umýva?",
+    "questionText": "Na ktorom obrázku sa umývajú ruky?",
     "questionText2": "Čo robia ruky?",
     "questionAudioPath": "/sounds/testing/home/20-1.mp3",
     "questionAudioPath2": "/sounds/testing/home/20-2.mp3",

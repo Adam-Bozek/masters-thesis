@@ -6,8 +6,8 @@ export default function Page() {
   return (
     <CategoryTestingController
       testedCategory="marketplace"
-      scenesConfigPath="/data/test/test2.json"
-      questionnaireConfigPath="/data/test/test1.json"
+      scenesConfigPath="/data/demo/scenes.json"
+      questionnaireConfigPath="/data/demo/questions.json"
       storageType="database"
       debug
       // optional:

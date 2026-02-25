@@ -188,15 +188,14 @@
       "o sladkom mediku"
     ],
     "config": {
-      // TODO: add coprrect content after recording
-      "sound_path": "/sounds/testing/zoo/story/scene.mp3",
+      "sound_path": "/sounds/testing/zoo/scene.mp3",
       "pictures": [
         { "path": "/images/testing/zoo/story/1.jpg", "display_time": "0:00", "display_type": "insert" },
-        { "path": "/images/testing/zoo/story/2.jpg", "display_time": "0:26", "display_type": "remove_all_and_add" },
-        { "path": "/images/testing/zoo/story/3.jpg", "display_time": "1:00", "display_type": "remove_all_and_add" },
-        { "path": "/images/testing/zoo/story/4.jpg", "display_time": "1:00", "display_type": "remove_all_and_add" },
-        { "path": "/images/testing/zoo/story/5.jpg", "display_time": "1:00", "display_type": "remove_all_and_add" },
-        { "path": "/images/testing/zoo/story/6.jpg", "display_time": "1:00", "display_type": "remove_all_and_add" }
+        { "path": "/images/testing/zoo/story/2.jpg", "display_time": "0:28", "display_type": "remove_all_and_add" },
+        { "path": "/images/testing/zoo/story/3.jpg", "display_time": "0:32", "display_type": "remove_all_and_add" },
+        { "path": "/images/testing/zoo/story/4.jpg", "display_time": "0:48", "display_type": "remove_all_and_add" },
+        { "path": "/images/testing/zoo/story/5.jpg", "display_time": "1:08", "display_type": "remove_all_and_add" },
+        { "path": "/images/testing/zoo/story/6.jpg", "display_time": "1:27", "display_type": "remove_all_and_add" }
       ]
     }
   }
