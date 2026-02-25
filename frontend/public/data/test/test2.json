@@ -4,10 +4,10 @@
       {
         "sound_path": "/sounds/1.mp3",
         "pictures": [
-          { "path": "/images/testing/marketplace/scenes/game_intro_1.gif", "display_time": "0:05", "display_type": "insert" },
-          { "path": "/images/testing/marketplace/scenes/game_intro_2.gif", "display_time": "0:10", "display_type": "remove_all_and_add" },
-          { "path": "/images/testing/marketplace/scenes/game_intro_3.jpg", "display_time": "0:15", "display_type": "add" },
-          { "path": "/images/testing/marketplace/scenes/game_intro_4.jpg", "display_time": "0:20", "display_type": "add" }
+          { "path": "/images/testing/marketplace/scenes/game_intro_1.gif", "display_time": "0:00", "display_type": "insert" },
+          { "path": "/images/testing/marketplace/scenes/game_intro_2.gif", "display_time": "0:03", "display_type": "remove_all_and_add" },
+          { "path": "/images/testing/marketplace/scenes/game_intro_3.jpg", "display_time": "0:06", "display_type": "add" },
+          { "path": "/images/testing/marketplace/scenes/game_intro_4.jpg", "display_time": "0:09", "display_type": "add" }
         ]
       }
     ],
@@ -15,8 +15,8 @@
       {
         "sound_path": "/sounds/1.mp3",
         "pictures": [
-          { "path": "/images/testing/marketplace/scenes/game_intro_2.gif", "display_time": "0:05", "display_type": "insert" },
-          { "path": "/images/testing/marketplace/scenes/intro_1.gif", "display_time": "0:10", "display_type": "add" }
+          { "path": "/images/testing/marketplace/scenes/game_intro_2.gif", "display_time": "0:00", "display_type": "insert" },
+          { "path": "/images/testing/marketplace/scenes/intro_1.jpg", "display_time": "0:03", "display_type": "add" }
         ]
       }
     ],
@@ -24,8 +24,8 @@
       {
         "sound_path": "/sounds/1.mp3",
         "pictures": [
-          { "path": "/images/testing/marketplace/scenes/game_intro_2.gif", "display_time": "0:10", "display_type": "insert" },
-          { "path": "/images/testing/marketplace/scenes/intro_1.jpg", "display_time": "0:20", "display_type": "add" }
+          { "path": "/images/testing/marketplace/scenes/game_intro_2.gif", "display_time": "0:00", "display_type": "insert" },
+          { "path": "/images/testing/marketplace/scenes/intro_1.jpg", "display_time": "0:03", "display_type": "add" }
         ]
       }
     ],
@@ -33,8 +33,8 @@
       {
         "sound_path": "/sounds/1.mp3",
         "pictures": [
-          { "path": "/images/testing/marketplace/scenes/outro_1.gif", "display_time": "0:10", "display_type": "insert" },
-          { "path": "/images/testing/marketplace/scenes/intro_1.jpg", "display_time": "0:20", "display_type": "add" }
+          { "path": "/images/testing/marketplace/scenes/outro_1.gif", "display_time": "0:00", "display_type": "insert" },
+          { "path": "/images/testing/marketplace/scenes/intro_1.jpg", "display_time": "0:03", "display_type": "add" }
         ]
       }
     ]

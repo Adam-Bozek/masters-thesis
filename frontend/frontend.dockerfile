@@ -1,5 +1,5 @@
 # ---------- Build ----------
-FROM node:25.6.0-alpine AS build
+FROM node:25.6.1-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci

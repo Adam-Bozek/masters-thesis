@@ -33,36 +33,18 @@
   },
   {
     "questionId": 3,
-    "questionType": 3,
-    "questionText": "O čom sme čítali?",
-    "questionAudioPath": "/sounds/1.mp3",
-    "acceptedTranscripts": [
-      "o mackovi",
-      "o mackovi a mede",
-      "o mackovi a medíku",
-      "o mackovi a mediku",
-      "o medveďovi",
-      "o medvedovi",
-      "o medveďkovi",
-      "o medvedkovi",
-      "o mede",
-      "o medíku",
-      "o mediku",
-      "o sladkom mede",
-      "o sladkom medíku",
-      "o sladkom mediku"
-    ],
-    "config": {
-      "sound_path": "/sounds/1.mp3",
-      "pictures": [
-        { "path": "/images/testing/zoo/story/1.jpg", "display_time": "0:05", "display_type": "insert" },
-        { "path": "/images/testing/zoo/story/2.jpg", "display_time": "0:10", "display_type": "remove_all_and_add" },
-        { "path": "/images/testing/zoo/story/3.jpg", "display_time": "0:15", "display_type": "remove_all_and_add" },
-        { "path": "/images/testing/zoo/story/4.jpg", "display_time": "0:20", "display_type": "remove_all_and_add" },
-        { "path": "/images/testing/zoo/story/5.jpg", "display_time": "0:25", "display_type": "remove_all_and_add" },
-        { "path": "/images/testing/zoo/story/6.jpg", "display_time": "0:28", "display_type": "remove_all_and_add" }
-      ]
-    }
+    "questionType": 1,
+    "questionText": "Na ktorom obrázku je kamión?",
+    "questionAudioPath": "/sounds/testing/street/5.mp3",
+    "acceptedTranscripts": ["kamión", "kamion", "kamiónik", "kamionik", "naklaďák", "nakladak", "nákladiak", "nakladiak"],
+    "answers": [
+      { "answerId": 1, "isCorrect": true, "label": "Kamión", "imagePath": "/images/testing/street/5-1.jpg" },
+      { "answerId": 2, "isCorrect": false, "label": "Autobus", "imagePath": "/images/testing/street/5-2.jpg" },
+      { "answerId": 3, "isCorrect": false, "label": "Vlak", "imagePath": "/images/testing/street/5-3.jpg" },
+      { "answerId": 4, "isCorrect": false, "label": "Loď", "imagePath": "/images/testing/street/5-4.jpg" },
+      { "answerId": 5, "isCorrect": false, "label": "Lietadlo", "imagePath": "/images/testing/street/5-5.jpg" },
+      { "answerId": 6, "isCorrect": false, "label": "Dodávka", "imagePath": "/images/testing/street/5-6.jpg" }
+    ]
   },
   {
     "questionId": 4,
