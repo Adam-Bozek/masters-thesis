@@ -6,7 +6,7 @@ import type { Dispatch, SetStateAction } from "react";
 
 import styles from "@/components/css/home.module.css";
 
-type Mode = "login" | "register" | "info";
+type Mode = "login" | "register" | "info" | "demo" | "runWithoutRegister";
 
 interface Props {
   setMode: Dispatch<SetStateAction<Mode>>;

@@ -226,18 +226,10 @@ const DashboardPage = () => {
 
             {/* Segmented filter */}
             <div className="segmented">
-              <button
-                type="button"
-                className={`segBtn ${sessionFilter === "all" ? "active" : ""}`}
-                onClick={() => setSessionFilter("all")}
-              >
+              <button type="button" className={`segBtn ${sessionFilter === "all" ? "active" : ""}`} onClick={() => setSessionFilter("all")}>
                 Všetky
               </button>
-              <button
-                type="button"
-                className={`segBtn ${sessionFilter === "active" ? "active" : ""}`}
-                onClick={() => setSessionFilter("active")}
-              >
+              <button type="button" className={`segBtn ${sessionFilter === "active" ? "active" : ""}`} onClick={() => setSessionFilter("active")}>
                 Prebieha
               </button>
               <button
@@ -251,8 +243,7 @@ const DashboardPage = () => {
           </div>
 
           <p className="mb-0">
-            Tu nájdete všetky vaše testovacie sedenia. Kliknutím na testovanie zobrazíte podrobnosti a stav jednotlivých
-            kategórií.
+            Tu nájdete všetky vaše testovacie sedenia. Kliknutím na testovanie zobrazíte podrobnosti a stav jednotlivých kategórií.
           </p>
 
           {loadingSessions && <p className="mt-3 mb-0">Načítavam testovania...</p>}
@@ -263,9 +254,7 @@ const DashboardPage = () => {
             </div>
           )}
 
-          {!loadingSessions && !sessionsError && sessions.length === 0 && (
-            <p className="mt-3 mb-0">Zatiaľ nemáte žiadne testovania.</p>
-          )}
+          {!loadingSessions && !sessionsError && sessions.length === 0 && <p className="mt-3 mb-0">Zatiaľ nemáte žiadne testovania.</p>}
         </div>
 
         {!loadingSessions && !sessionsError && filteredSessions.length > 0 && (
@@ -297,9 +286,7 @@ const DashboardPage = () => {
                             <div className="d-flex flex-wrap align-items-center gap-2">
                               <strong>Testovanie</strong>
                               <span className="small text-muted">zo dňa: {formatDate(session.started_at)}</span>
-                              <StatusPill variant={isCompleted ? "done" : "active"}>
-                                {isCompleted ? "Ukončené" : "Prebieha"}
-                              </StatusPill>
+                              <StatusPill variant={isCompleted ? "done" : "active"}>{isCompleted ? "Ukončené" : "Prebieha"}</StatusPill>
                             </div>
 
                             {/* Mini summary if categories are loaded */}
@@ -334,9 +321,7 @@ const DashboardPage = () => {
                           <div className="mt-3">
                             {catsLoading && <p className="mb-0 small">Načítavam kategórie...</p>}
 
-                            {catsError && (
-                              <p className="mb-0 small text-danger">Chyba pri načítaní kategórií: {catsError}</p>
-                            )}
+                            {catsError && <p className="mb-0 small text-danger">Chyba pri načítaní kategórií: {catsError}</p>}
 
                             {!catsLoading && !catsError && categories.length === 0 && (
                               <p className="mb-0 small text-muted">Žiadne kategórie pre toto sedenie.</p>
@@ -353,9 +338,7 @@ const DashboardPage = () => {
                                   return (
                                     <li key={category.id} className="category-list-item">
                                       <div className="category-main">
-                                        <span className="fw-semibold">
-                                          Kategória: {translateCategoryName(category.name)}
-                                        </span>
+                                        <span className="fw-semibold">Kategória: {translateCategoryName(category.name)}</span>
 
                                         <StatusPill variant={isCategoryCompleted ? "done" : "active"}>
                                           {isCategoryCompleted ? "Dokončená" : "Nedokončená"}
@@ -365,12 +348,8 @@ const DashboardPage = () => {
                                           {isCorrected ? "Skontrolovaná" : "Neskontrolovaná"}
                                         </StatusPill>
 
-                                        <span className="small text-muted">
-                                          Začiatok: {startedAt ? formatDateTime(startedAt) : "-"}
-                                        </span>
-                                        <span className="small text-muted">
-                                          Čas vyplňania: {formatDurationMinutes(startedAt, completedAt)}
-                                        </span>
+                                        <span className="small text-muted">Začiatok: {startedAt ? formatDateTime(startedAt) : "-"}</span>
+                                        <span className="small text-muted">Čas vyplňania: {formatDurationMinutes(startedAt, completedAt)}</span>
                                       </div>
 
                                       <div className="category-actions">

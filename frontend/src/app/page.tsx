@@ -5,12 +5,14 @@ import { useState } from "react";
 import Login from "@/components/public/Login";
 import Register from "@/components/public/Register";
 import Info from "@/components/public/Info";
+import Demo from "@/components/public/Demo";
+import RunWithoutRegister from "@/components/public/RunWithoutRegister";
 
 import "@/components/css/global.css";
 
 import styles from "@/components/css/home.module.css";
 
-type Mode = "login" | "register" | "info";
+type Mode = "login" | "register" | "info" | "demo" | "runWithoutRegister";
 
 export default function Home() {
   const [mode, setMode] = useState<Mode>("register");
@@ -26,9 +28,8 @@ export default function Home() {
             <div className={`col-lg-6 d-flex flex-column justify-content-center text-center ${styles.heroCol}`}>
               <h1 className={`${styles.title} mb-2`}>Vitajte! 👋</h1>
               <p className="mb-3">
-                Táto webová aplikácia vznikla ako súčasť praktickej časti diplomovej práce a slúži na testovanie dieťaťa
-                skrátenou verziou testu TEKOS 2. Autorom je Bc. Adam Božek pod vedením doc. Ing. Stanislava Ondáša, PhD.
-                Viac informácií nájdete v karte Informácie.
+                Táto webová aplikácia vznikla ako súčasť praktickej časti diplomovej práce a slúži na testovanie dieťaťa skrátenou verziou testu TEKOS
+                2. Autorom je Bc. Adam Božek pod vedením doc. Ing. Stanislava Ondáša, PhD. Viac informácií nájdete v karte Informácie.
               </p>
 
               <p className="status-pill status-pill--active warning-pill py-1">
@@ -67,6 +68,29 @@ export default function Home() {
                   Informácie
                 </button>
               </div>
+
+              <div className="glass my-4 p-2 rounded-4 align-self-center" style={{ width: "max-content" }}>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === "demo"}
+                  aria-controls="auth-pane"
+                  className={`${styles.segBtn} ${mode === "demo" ? styles.active : ""} rounded-4`}
+                  onClick={() => setMode("demo")}
+                >
+                  Vyskúšať demo
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === "runWithoutRegister"}
+                  aria-controls="auth-pane"
+                  className={`${styles.segBtn} ${mode === "runWithoutRegister" ? styles.active : ""} rounded-4`}
+                  onClick={() => setMode("runWithoutRegister")}
+                >
+                  Spustiť bez registrácie
+                </button>
+              </div>
             </div>
 
             <div className="col-lg-6 d-flex flex-column justify-content-center align-items-center text-center">
@@ -74,9 +98,13 @@ export default function Home() {
                 <Login setMode={setMode} />
               ) : mode === "register" ? (
                 <Register setMode={setMode} />
-              ) : (
+              ) : mode === "info" ? (
                 <Info />
-              )}
+              ) : mode === "demo" ? (
+                <Demo />
+              ) : mode === "runWithoutRegister" ? (
+                <RunWithoutRegister />
+              ) : null}
             </div>
           </div>
         </div>

@@ -122,6 +122,7 @@ services:
       - app
 
   certbot:
+    profiles: ["manual"]
     container_name: certbot
     image: certbot/certbot
     restart: "no"

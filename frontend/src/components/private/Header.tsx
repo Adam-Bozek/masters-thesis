@@ -1,12 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Navbar, Button } from "react-bootstrap";
 import { useAuth } from "@/utilities/AuthContext";
-
-import SceneBuilder from "./SceneBuilder";
-import type { SceneConfig } from "./SceneBuilder";
 
 const Header = () => {
   const { user, logout } = useAuth();
