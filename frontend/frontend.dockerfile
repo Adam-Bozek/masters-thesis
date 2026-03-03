@@ -10,8 +10,6 @@ RUN npm run build
 FROM node:25.7.0-alpine
 WORKDIR /app
 ENV NODE_ENV=production
-
 COPY --from=build /app /app
-
 EXPOSE 3000
 CMD ["sh", "-lc", "npm run start -- -H 0.0.0.0 -p 3000"]
