@@ -5,7 +5,7 @@ import CategoryTestingController from "@/components/private/Controller";
 export default function Page() {
   return (
     <CategoryTestingController
-      testedCategory="marketplace"
+      testedCategory="home"
       scenesConfigPath="/data/demo/scenes.json"
       questionnaireConfigPath="/data/demo/questions.json"
       storageType="database"
