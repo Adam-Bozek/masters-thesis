@@ -83,3 +83,47 @@ This project is licensed under the GNU AGPL v3 License - see the [LICENSE](LICEN
 
 If you have any questions don't hesitate to contact me:
 [Adam Božek](mailto:b0zek.adm@gmail.com)
+
+## HTTPS Recovery after `docker compose down -v`
+
+### 1. Put Nginx back to HTTP-only bootstrap config
+
+Nastavte subor `./nginx/conf.d/default.conf` na:
+
+```
+server {
+listen 80;
+listen [::]:80;
+server_name tekos.3pocube.fei.tuke.sk;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/_letsencrypt;
+    }
+
+    location /api/ {
+        proxy_pass http://backend:5000;
+    }
+
+    location / {
+        proxy_pass http://frontend:3000;
+    }
+}
+```
+
+### 2. Bring the stack up (recreates volumes)
+
+```bash
+docker compose up -d --build 3) Re-issue the Let’s Encrypt certificate
+docker compose run --rm certbot certonly \
+ --webroot -w /var/www/\_letsencrypt \
+ -d tekos.3pocube.fei.tuke.sk \
+ --email adam.bozek@student.tuke.sk \
+ --agree-tos --no-eff-email 4) Switch Nginx config back to HTTPS and reload
+```
+
+Vymenit subor `./nginx/conf.d/default.conf` na povodnu verziu (ctrl+z) a spustit
+
+```bash
+docker compose exec nginx nginx -t
+docker compose exec nginx nginx -s reload
+```

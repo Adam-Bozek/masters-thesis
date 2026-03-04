@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { useRouter } from "next/navigation";
+
 import "@/components/css/global.css";
 import styles from "@/components/css/home.module.css";
 
@@ -92,6 +94,8 @@ const formatDurationMinutes = (startIso: string | null, endIso: string | null) =
 
 const translateCategoryName = (categoryName: string) => CATEGORY_LABELS[categoryName] ?? "Zlý názov kategórie";
 
+const toCategorySlug = (categoryName: string) => categoryName.trim().toLowerCase();
+
 type StatusPillProps = {
   variant: "active" | "done" | "info";
   children: React.ReactNode;
@@ -102,6 +106,7 @@ const StatusPill = ({ variant, children }: StatusPillProps) => {
 };
 
 const DashboardPage = () => {
+  const router = useRouter();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [sessionsError, setSessionsError] = useState<string | null>(null);
@@ -198,6 +203,12 @@ const DashboardPage = () => {
         };
       });
     }
+  };
+
+  const handleStartCategory = (sessionId: number, categoryName: string) => {
+    const slug = toCategorySlug(categoryName);
+    if (slug === "marketplace") return;
+    router.push(`/testing/${encodeURIComponent(slug)}?sessionId=${encodeURIComponent(String(sessionId))}`);
   };
 
   const handleToggleSession = (sessionId: number) => {
@@ -362,7 +373,12 @@ const DashboardPage = () => {
                                           {isCorrected ? "Skontrolovaná" : "Opraviť"}
                                         </button>
 
-                                        <button type="button" className="btn btn-primary btn-sm">
+                                        <button
+                                          type="button"
+                                          className="btn btn-primary btn-sm"
+                                          disabled={category.name.toLowerCase() === "marketplace"}
+                                          onClick={() => handleStartCategory(session.id, category.name)}
+                                        >
                                           Spustiť kategóriu
                                         </button>
                                       </div>

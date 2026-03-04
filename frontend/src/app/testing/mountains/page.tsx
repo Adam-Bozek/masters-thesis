@@ -1,18 +1,33 @@
 "use client";
 
+import { useMemo } from "react";
 import CategoryTestingController from "@/components/private/Controller";
 
-export default function Page() {
+type PageProps = {
+  params: { categoryname: string };
+  searchParams?: { sessionId?: string };
+};
+
+export default function Page({ params, searchParams }: PageProps) {
+  const sessionId = useMemo(() => {
+    const raw = searchParams?.sessionId;
+    if (!raw) return undefined;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : undefined;
+  }, [searchParams?.sessionId]);
+
+  const testedCategory = "mountains";
+
   return (
     <CategoryTestingController
-      testedCategory="mountains"
-      scenesConfigPath="/data/demo/scenes.json"
-      questionnaireConfigPath="/data/demo/questions.json"
+      testedCategory={testedCategory}
+      scenesConfigPath="/data/scene_config.json"
+      questionnaireConfigPath={`/data/${testedCategory}.json`}
       storageType="database"
       debug
       // optional:
-      // sessionId={8}
       // redirectTo="/dashboard/category"
+      // sessionId={sessionId}
     />
   );
 }
