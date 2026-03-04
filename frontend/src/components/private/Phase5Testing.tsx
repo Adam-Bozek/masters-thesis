@@ -100,6 +100,124 @@ function getAudioSrc(q: Question): string {
   return q.questionAudioPath;
 }
 
+// =========================
+// Preload (images + audio)
+// =========================
+const __imgPreloadCache = new Map<string, Promise<void>>();
+const __audioPreloadCache = new Map<string, Promise<void>>();
+
+function __isImageUrl(url: string) {
+  return /\.(png|jpe?g|gif|webp|svg)$/i.test(url.split("?")[0]);
+}
+
+function __preloadImage(url: string): Promise<void> {
+  if (!url) return Promise.resolve();
+  if (typeof window === "undefined" || typeof window.Image === "undefined") return Promise.resolve();
+  const cached = __imgPreloadCache.get(url);
+  if (cached) return cached;
+
+  const p = new Promise<void>((resolve) => {
+    const img = new window.Image();
+    (img as any).decoding = "async";
+    img.onload = async () => {
+      try {
+        if (typeof (img as any).decode === "function") await (img as any).decode();
+      } catch {}
+      resolve();
+    };
+    img.onerror = () => resolve();
+    img.src = url;
+  });
+
+  __imgPreloadCache.set(url, p);
+  return p;
+}
+
+function __preloadAudio(url: string): Promise<void> {
+  if (!url) return Promise.resolve();
+  const cached = __audioPreloadCache.get(url);
+  if (cached) return cached;
+
+  const p = fetch(url, { cache: "force-cache" })
+    .then(() => undefined)
+    .catch(() => undefined);
+
+  __audioPreloadCache.set(url, p);
+  return p;
+}
+
+async function __preloadMany(urls: string[], concurrency = 6): Promise<void> {
+  const unique = Array.from(new Set((urls ?? []).filter(Boolean)));
+  let i = 0;
+
+  async function worker() {
+    while (i < unique.length) {
+      const url = unique[i++];
+      if (__isImageUrl(url)) await __preloadImage(url);
+      else await __preloadAudio(url);
+    }
+  }
+
+  const n = Math.min(concurrency, unique.length || 1);
+  await Promise.all(Array.from({ length: n }, worker));
+}
+
+function __extractAssetsForPreload(q: Question | null | undefined): string[] {
+  if (!q) return [];
+  const urls: string[] = [];
+
+  if ((q as any).questionAudioPath) urls.push((q as any).questionAudioPath);
+  if ((q as any).questionAudioPath2) urls.push((q as any).questionAudioPath2);
+
+  const audioSrc = getAudioSrc(q);
+  if (audioSrc) urls.push(audioSrc);
+
+  if (q.questionType === 1 || q.questionType === 2) {
+    for (const a of (q as any).answers ?? []) {
+      if (a?.imagePath) urls.push(a.imagePath);
+    }
+  }
+
+  return urls;
+}
+
+function useQuestionPreload(list: Question[], index: number, lookahead = 3) {
+  const [ready, setReady] = useState(false);
+
+  const currentUrls = useMemo(() => __extractAssetsForPreload(list?.[index]), [list, index]);
+  const nextUrls = useMemo(() => {
+    const urls: string[] = [];
+    for (let k = 1; k <= lookahead; k++) {
+      const q = list?.[index + k];
+      if (q) urls.push(...__extractAssetsForPreload(q));
+    }
+    return urls;
+  }, [list, index, lookahead]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      setReady(false);
+      await __preloadMany(currentUrls, 6);
+      if (!cancelled) setReady(true);
+
+      const bg = () => void __preloadMany(nextUrls, 4);
+      if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+        (window as any).requestIdleCallback(bg, { timeout: 1000 });
+      } else {
+        setTimeout(bg, 0);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUrls, nextUrls]);
+
+  return ready;
+}
+
 function dedupeByQuestionId(list: Question[]): Question[] {
   const seen = new Set<number>();
   const out: Question[] = [];
@@ -146,6 +264,8 @@ export default function Phase5Testing({ wrongQuestions, categoryId, storageType,
   const remaining = useMemo(() => orderedQuestions.filter((q) => !answeredIds.has(q.questionId)), [orderedQuestions, answeredIds]);
 
   const activeQ = remaining[activeIndex] ?? null;
+
+  const assetsReady = useQuestionPreload(remaining, activeIndex, 3);
 
   useEffect(() => {
     if (activeIndex >= remaining.length) setActiveIndex(Math.max(0, remaining.length - 1));
@@ -383,6 +503,14 @@ export default function Phase5Testing({ wrongQuestions, categoryId, storageType,
         <div className="text-muted small">
           Zodpovedané: {answeredCount}/{total}
         </div>
+      </div>
+    );
+  }
+
+  if (!assetsReady) {
+    return (
+      <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white">
+        <div className="spinner-border" role="status" aria-label="Načítavam zdroje" />
       </div>
     );
   }
