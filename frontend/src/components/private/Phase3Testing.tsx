@@ -112,11 +112,13 @@ function normalizeTranscript(s: string): string {
 }
 
 function getPromptText(q: Question): string {
-  return q.questionType === 2 ? q.questionText2 : q.questionText;
+  if (q.questionType === 1) return "Čo je na tomto obrázku?";
+  return q.questionText;
 }
 
 function getAudioSrc(q: Question): string {
-  if (q.questionType === 2) return q.questionAudioPath2;
+  if (q.questionType === 1) return "/sounds/testing/čjnto.mp3";
+  if (q.questionType === 2) return q.questionAudioPath;
   if (q.questionType === 3) {
     const c: any = q.config;
     if (typeof c?.sound_path === "string" && c.sound_path) return c.sound_path;
@@ -131,136 +133,6 @@ function getStimulusImage(q: Question): string | null {
   }
   if (q.questionType === 4) return q.imagePath;
   return null;
-}
-
-// =========================
-// Preload (images + audio)
-// =========================
-const __imgPreloadCache = new Map<string, Promise<void>>();
-const __audioPreloadCache = new Map<string, Promise<void>>();
-
-function __isImageUrl(url: string) {
-  return /\.(png|jpe?g|gif|webp|svg)$/i.test(url.split("?")[0]);
-}
-
-function __preloadImage(url: string): Promise<void> {
-  if (!url) return Promise.resolve();
-  if (typeof window === "undefined" || typeof window.Image === "undefined") return Promise.resolve();
-  const cached = __imgPreloadCache.get(url);
-  if (cached) return cached;
-
-  const p = new Promise<void>((resolve) => {
-    const img = new window.Image();
-    (img as any).decoding = "async";
-    img.onload = async () => {
-      try {
-        if (typeof (img as any).decode === "function") await (img as any).decode();
-      } catch {}
-      resolve();
-    };
-    img.onerror = () => resolve(); // never hard-block on a single asset
-    img.src = url;
-  });
-
-  __imgPreloadCache.set(url, p);
-  return p;
-}
-
-function __preloadAudio(url: string): Promise<void> {
-  if (!url) return Promise.resolve();
-  const cached = __audioPreloadCache.get(url);
-  if (cached) return cached;
-
-  const p = fetch(url, { cache: "force-cache" })
-    .then(() => undefined)
-    .catch(() => undefined);
-
-  __audioPreloadCache.set(url, p);
-  return p;
-}
-
-async function __preloadMany(urls: string[], concurrency = 6): Promise<void> {
-  const unique = Array.from(new Set((urls ?? []).filter(Boolean)));
-  let i = 0;
-
-  async function worker() {
-    while (i < unique.length) {
-      const url = unique[i++];
-      if (__isImageUrl(url)) await __preloadImage(url);
-      else await __preloadAudio(url);
-    }
-  }
-
-  const n = Math.min(concurrency, unique.length || 1);
-  await Promise.all(Array.from({ length: n }, worker));
-}
-
-function __extractAssetsForPreload(q: Question | null | undefined): string[] {
-  if (!q) return [];
-  const urls: string[] = [];
-
-  // include both audio paths (some configs use only one, type2 uses *2)
-  if ((q as any).questionAudioPath) urls.push((q as any).questionAudioPath);
-  if ((q as any).questionAudioPath2) urls.push((q as any).questionAudioPath2);
-
-  // main audio actually used
-  const audioSrc = getAudioSrc(q);
-  if (audioSrc) urls.push(audioSrc);
-
-  // stimulus image used in Phase3 UI (types 1/2/4)
-  const stim = getStimulusImage(q);
-  if (stim) urls.push(stim);
-
-  // scene assets (type3)
-  if (q.questionType === 3) {
-    const c: any = (q as any).config;
-    if (typeof c?.sound_path === "string" && c.sound_path) urls.push(c.sound_path);
-    if (typeof c?.picture_path === "string" && c.picture_path) urls.push(c.picture_path);
-    if (Array.isArray(c?.pictures)) {
-      for (const p of c.pictures) {
-        if (typeof p?.path === "string" && p.path) urls.push(p.path);
-      }
-    }
-  }
-
-  return urls;
-}
-
-function useQuestionPreload(list: Question[], index: number, lookahead = 2) {
-  const [ready, setReady] = useState(false);
-
-  const currentUrls = useMemo(() => __extractAssetsForPreload(list?.[index]), [list, index]);
-  const nextUrls = useMemo(() => {
-    const urls: string[] = [];
-    for (let k = 1; k <= lookahead; k++) {
-      const q = list?.[index + k];
-      if (q) urls.push(...__extractAssetsForPreload(q));
-    }
-    return urls;
-  }, [list, index, lookahead]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      setReady(false);
-      await __preloadMany(currentUrls, 6);
-      if (!cancelled) setReady(true);
-
-      const bg = () => void __preloadMany(nextUrls, 4);
-      if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-        (window as any).requestIdleCallback(bg, { timeout: 1000 });
-      } else {
-        setTimeout(bg, 0);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentUrls, nextUrls]);
-
-  return ready;
 }
 
 function isTimelineConfig(c: SceneConfigTimeline | SceneConfigSingle): c is SceneConfigTimeline {
@@ -452,8 +324,6 @@ export default function Phase3Testing({
 
   const remaining = useMemo(() => orderedQuestions.filter((q) => !answeredIds.has(q.questionId)), [orderedQuestions, answeredIds]);
   const activeQ = remaining[activeIndex] ?? null;
-
-  const assetsReady = useQuestionPreload(remaining, activeIndex, 2);
 
   const total = orderedQuestions.length;
   const answeredCount = answeredIds.size;
@@ -759,14 +629,6 @@ export default function Phase3Testing({
           Dokončené
         </div>
         <div className="text-muted small">Nesprávne pre ďalšiu fázu: {incorrect.length}</div>
-      </div>
-    );
-  }
-
-  if (!assetsReady) {
-    return (
-      <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white">
-        <div className="spinner-border" role="status" aria-label="Načítavam zdroje" />
       </div>
     );
   }

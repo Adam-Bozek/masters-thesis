@@ -165,10 +165,10 @@
   {
     "questionId": 10,
     "questionType": 2,
-    "questionText": "Na ktorom obrázku kamión cúva?",
-    "questionText2": "Čo robí kamión?",
-    "questionAudioPath": "/sounds/testing/street/10-1.mp3",
-    "questionAudioPath2": "/sounds/testing/street/10-2.mp3",
+    "questionText1": "Čo robí kamión?",
+    "questionText2": "Na ktorom obrázku kamión cúva?",
+    "questionAudioPath": "/sounds/testing/street/10-2.mp3",
+    "questionAudioPath2": "/sounds/testing/street/10-1.mp3",
     "acceptedTranscripts": ["kamión cúva", "kamion cuva", "cúva", "cuva", "cúva dozadu", "cuva dozadu"],
     "answers": [
       { "answerId": 1, "isCorrect": true, "label": "Kamión cúva", "imagePath": "/images/testing/street/10-1.gif" },
@@ -178,10 +178,10 @@
   {
     "questionId": 11,
     "questionType": 2,
-    "questionText": "Na ktorom obrázku ujo opravuje auto?",
-    "questionText2": "Čo robí ujo?",
-    "questionAudioPath": "/sounds/testing/street/11-1.mp3",
-    "questionAudioPath2": "/sounds/testing/street/11-2.mp3",
+    "questionText": "Čo robí ujo?",
+    "questionText2": "Na ktorom obrázku ujo opravuje auto?",
+    "questionAudioPath": "/sounds/testing/street/11-2.mp3",
+    "questionAudioPath2": "/sounds/testing/street/11-1.mp3",
     "acceptedTranscripts": [
       "ujo opravuje auto",
       "ujo opravuje autíčko",

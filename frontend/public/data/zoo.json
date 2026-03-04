@@ -139,10 +139,10 @@
   {
     "questionId": 10,
     "questionType": 2,
-    "questionText": "Na ktorom obrázku sa dievčatko bojí?",
-    "questionText2": "Čo robí dievčatko?",
-    "questionAudioPath": "/sounds/testing/zoo/10-1.mp3",
-    "questionAudioPath2": "/sounds/testing/zoo/10-2.mp3",
+    "questionText": "Čo robí dievčatko?",
+    "questionText2": "Na ktorom obrázku sa dievčatko bojí?",
+    "questionAudioPath": "/sounds/testing/zoo/10-2.mp3",
+    "questionAudioPath2": "/sounds/testing/zoo/10-1.mp3",
     "acceptedTranscripts": [
       "dievčatko sa bojí",
       "dievcatko sa boji",

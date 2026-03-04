@@ -194,10 +194,10 @@
   {
     "questionId": 13,
     "questionType": 2,
-    "questionText": "Na ktorom obrázku ujo čaká na autobusovej zastávke?",
-    "questionText2": "Čo robí ujo na autobusovej zastávke?",
-    "questionAudioPath": "/sounds/testing/marketplace/13-1.mp3",
-    "questionAudioPath2": "/sounds/testing/marketplace/13-2.mp3",
+    "questionText": "Čo robí ujo na autobusovej zastávke?",
+    "questionText2": "Na ktorom obrázku ujo čaká na autobusovej zastávke?",
+    "questionAudioPath": "/sounds/testing/marketplace/13-2.mp3",
+    "questionAudioPath2": "/sounds/testing/marketplace/13-1.mp3",
     "acceptedTranscripts": [
       "ujo čaká",
       "ujo caka",
@@ -218,10 +218,10 @@
   {
     "questionId": 14,
     "questionType": 2,
-    "questionText": "Na ktorom obrázku mamka nakupuje?",
-    "questionText2": "Čo robí mamka?",
-    "questionAudioPath": "/sounds/testing/marketplace/14-1.mp3",
-    "questionAudioPath2": "/sounds/testing/marketplace/14-2.mp3",
+    "questionText": "Čo robí mamka?",
+    "questionText2": "Na ktorom obrázku mamka nakupuje?",
+    "questionAudioPath": "/sounds/testing/marketplace/14-2.mp3",
+    "questionAudioPath2": "/sounds/testing/marketplace/14-1.mp3",
     "acceptedTranscripts": [
       "mamka nakupuje",
       "mama nakupuje",
@@ -240,10 +240,10 @@
   {
     "questionId": 15,
     "questionType": 2,
-    "questionText": "Na ktorom obrázku je žltý balón?",
-    "questionText2": "Akú farbu má balón?",
-    "questionAudioPath": "/sounds/testing/marketplace/15-1.mp3",
-    "questionAudioPath2": "/sounds/testing/marketplace/15-2.mp3",
+    "questionText": "Akú farbu má balón?",
+    "questionText2": "Na ktorom obrázku je žltý balón?",
+    "questionAudioPath": "/sounds/testing/marketplace/15-2.mp3",
+    "questionAudioPath2": "/sounds/testing/marketplace/15-1.mp3",
     "acceptedTranscripts": [
       "žltý balón",
       "zlty balon",

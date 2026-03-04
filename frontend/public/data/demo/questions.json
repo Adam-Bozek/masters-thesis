@@ -3,7 +3,7 @@
     "questionId": 1,
     "questionType": 1,
     "questionText": "Na ktorom obrázku je chvost?",
-    "questionAudioPath": "/sounds/testing/zoo/chvost.mp3",
+    "questionAudioPath": "/sounds/testing/zoo/2.mp3",
     "acceptedTranscripts": ["chvost", "chvostík", "chvostik", "chvostíček", "chvosticek", "chvostík malý", "chvostik maly"],
     "answers": [
       { "answerId": 1, "isCorrect": true, "label": "Chvost", "imagePath": "/images/testing/zoo/2-1.jpg" },
@@ -17,10 +17,10 @@
   {
     "questionId": 2,
     "questionType": 2,
-    "questionText": "Čo vydáva tento zvuk?",
-    "questionText2": "Ako robí kačka?",
-    "questionAudioPath": "/sounds/testing/zoo/Čo vydáva tento zvuk (kačkač).mp3",
-    "questionAudioPath2": "/sounds/Ako robí kačka.mp3",
+    "questionText": "Ako robí kačka?",
+    "questionText2": "Čo vydáva tento zvuk?",
+    "questionAudioPath": "/sounds/testing/zoo/1-1.mp3",
+    "questionAudioPath2": "/sounds/testing/zoo/1-2.mp3",
     "acceptedTranscripts": ["kač", "kac", "kač kač", "kac kac", "kačka"],
     "answers": [
       { "answerId": 1, "isCorrect": true, "label": "Kvákajúca kačka", "imagePath": "/images/testing/zoo/1-1.jpg" },
@@ -35,7 +35,7 @@
     "questionId": 3,
     "questionType": 1,
     "questionText": "Na ktorom obrázku je kamión?",
-    "questionAudioPath": "/sounds/testing/street/kamión.mp3",
+    "questionAudioPath": "/sounds/testing/street/5.mp3",
     "acceptedTranscripts": ["kamión", "kamion", "kamiónik", "kamionik", "naklaďák", "nakladak", "nákladiak", "nakladiak"],
     "answers": [
       { "answerId": 1, "isCorrect": true, "label": "Kamión", "imagePath": "/images/testing/street/5-1.jpg" },
@@ -50,7 +50,7 @@
     "questionId": 4,
     "questionType": 4,
     "questionText": "Kde sa nachádza hračka?",
-    "questionAudioPath": "/sounds/testing/home/Kde sa nachádza hračka.mp3",
+    "questionAudioPath": "/sounds/testing/home/24.mp3",
     "imagePath": "/images/testing/home/24.jpg",
     "acceptedTranscripts": ["na poličke", "na policke", "na poličke", "na policke", "na polici", "na polici hore"]
   }
