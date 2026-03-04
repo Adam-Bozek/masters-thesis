@@ -78,7 +78,7 @@
   {
     "questionId": 6,
     "questionType": 2,
-    "questionText1": "Čo robí zvieratko?",
+    "questionText": "Čo robí zvieratko?",
     "questionText2": "Na ktorom obrázku zvieratko pije vodu?",
     "questionAudioPath": "/sounds/testing/mountains/6-2.mp3",
     "questionAudioPath2": "/sounds/testing/mountains/6-1.mp3",

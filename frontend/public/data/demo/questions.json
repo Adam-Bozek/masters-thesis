@@ -50,8 +50,8 @@
     "questionId": 4,
     "questionType": 4,
     "questionText": "Kde sa nachádza hračka?",
-    "questionAudioPath": "/sounds/testing/home/24.mp3",
-    "imagePath": "/images/testing/home/24.jpg",
+    "questionAudioPath": "/sounds/testing/home/25.mp3",
+    "imagePath": "/images/testing/home/25.jpg",
     "acceptedTranscripts": ["na poličke", "na policke", "na poličke", "na policke", "na polici", "na polici hore"]
   }
 ]

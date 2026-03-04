@@ -2,7 +2,7 @@
   {
     "questionId": 1,
     "questionType": 2,
-    "questionText": "Ako robí dievča keď si vzdyvhne?",
+    "questionText": "Ako robí dievča keď si vzdychne?",
     "questionText2": "Čo vydáva tento zvuk?",
     "questionAudioPath": "/sounds/testing/home/1-1.mp3",
     "questionAudioPath2": "/sounds/testing/home/1-2.mp3",
@@ -69,7 +69,7 @@
   {
     "questionId": 4,
     "questionType": 2,
-    "questionText": "Ako robia hodinky?",
+    "questionText": "Ako robia hodiny?",
     "questionText2": "Čo vydáva tento zvuk?",
     "questionAudioPath": "/sounds/testing/home/4-1.mp3",
     "questionAudioPath2": "/sounds/testing/home/4-2.mp3",

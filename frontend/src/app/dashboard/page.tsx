@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
 import { useRouter } from "next/navigation";
 
 import "@/components/css/global.css";
@@ -45,6 +44,12 @@ const CATEGORY_LABELS: Record<string, string> = {
   Street: "Ulica",
   Parent_answerd: "Odpovede rodiča",
 };
+
+// Required completion order (locked)
+const CATEGORY_ORDER = ["Marketplace", "Mountains", "Zoo", "Street", "Home"] as const;
+
+const normalizeName = (s: string) => s.trim().toLowerCase();
+const ORDER_NORM = CATEGORY_ORDER.map(normalizeName);
 
 const getErrorMessage = (err: unknown, fallback: string): string => {
   if (err instanceof Error) return err.message;
@@ -103,6 +108,22 @@ type StatusPillProps = {
 
 const StatusPill = ({ variant, children }: StatusPillProps) => {
   return <span className={`status-pill status-pill--${variant}`}>{children}</span>;
+};
+
+const getNextRequiredNorm = (categories: SessionCategory[]): string | null => {
+  const byName = new Map(categories.map((c) => [normalizeName(c.name), c]));
+  for (const n of ORDER_NORM) {
+    const cat = byName.get(n);
+    if (!cat || !cat.completed_at) return n;
+  }
+  return null;
+};
+
+const getOrderDisplay = () => CATEGORY_ORDER.map((n) => translateCategoryName(String(n))).join(" → ");
+
+const getLabelFromNorm = (norm: string) => {
+  const original = CATEGORY_ORDER.find((n) => normalizeName(n) === norm);
+  return original ? translateCategoryName(String(original)) : norm;
 };
 
 const DashboardPage = () => {
@@ -207,7 +228,7 @@ const DashboardPage = () => {
 
   const handleStartCategory = (sessionId: number, categoryName: string) => {
     const slug = toCategorySlug(categoryName);
-    if (slug === "marketplace") return;
+    if (slug === "marketplace") return; // Marketplace starts via "Nová hra"
     router.push(`/testing/${encodeURIComponent(slug)}?sessionId=${encodeURIComponent(String(sessionId))}`);
   };
 
@@ -233,9 +254,8 @@ const DashboardPage = () => {
       <main className="container d-flex flex-column align-items-start">
         <div className="glass p-3 p-lg-4 mb-4 w-100">
           <div className="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
-            <h1 className={`${styles.dashTitle} mb-0`}>Prehľad testov 📋</h1>
+            <h1 className={`${styles.dashTitle} mb-0`}>Prehľad testov</h1>
 
-            {/* Segmented filter */}
             <div className="segmented">
               <button type="button" className={`segBtn ${sessionFilter === "all" ? "active" : ""}`} onClick={() => setSessionFilter("all")}>
                 Všetky
@@ -276,12 +296,16 @@ const DashboardPage = () => {
 
               const catState = categoriesState[session.id];
               const categories = catState?.data ?? [];
-              const catsLoading = catState?.loading;
-              const catsError = catState?.error;
+              const catsLoading = catState?.loading ?? false;
+              const catsError = catState?.error ?? null;
+              const hasFetchedCats = !!catState;
 
               const completedCount = categories.filter((c) => !!c.completed_at).length;
               const correctedCount = categories.filter((c) => c.was_corrected).length;
               const hasCategories = categories.length > 0;
+
+              const nextRequiredNorm = hasCategories ? getNextRequiredNorm(categories) : null;
+              const orderedAllDone = hasCategories ? nextRequiredNorm === null : false;
 
               return (
                 <div key={session.id} className="glass p-0 w-100 mb-3">
@@ -300,7 +324,6 @@ const DashboardPage = () => {
                               <StatusPill variant={isCompleted ? "done" : "active"}>{isCompleted ? "Ukončené" : "Prebieha"}</StatusPill>
                             </div>
 
-                            {/* Mini summary if categories are loaded */}
                             {hasCategories && (
                               <div className="d-flex flex-wrap gap-2 small">
                                 <StatusPill variant="info">
@@ -334,8 +357,24 @@ const DashboardPage = () => {
 
                             {catsError && <p className="mb-0 small text-danger">Chyba pri načítaní kategórií: {catsError}</p>}
 
-                            {!catsLoading && !catsError && categories.length === 0 && (
+                            {!catsLoading && !catsError && hasFetchedCats && categories.length === 0 && (
                               <p className="mb-0 small text-muted">Žiadne kategórie pre toto sedenie.</p>
+                            )}
+
+                            {!catsLoading && !catsError && hasCategories && !isCompleted && (
+                              <div className="alert alert-info py-2 px-3 mb-3" role="alert">
+                                <div className="small">
+                                  <strong>Poradie:</strong> {getOrderDisplay()}
+                                </div>
+                                <div className="small mt-1">
+                                  <strong>Ďalšia kategória:</strong>{" "}
+                                  {orderedAllDone
+                                    ? "Všetky povinné kategórie sú dokončené."
+                                    : nextRequiredNorm === "marketplace"
+                                      ? `${getLabelFromNorm(nextRequiredNorm)} (spúšťa sa cez „Nová hra“).`
+                                      : getLabelFromNorm(nextRequiredNorm ?? "")}
+                                </div>
+                              </div>
                             )}
 
                             {!catsLoading && !catsError && categories.length > 0 && (
@@ -345,6 +384,30 @@ const DashboardPage = () => {
                                   const startedAt = category.started_at;
                                   const completedAt = category.completed_at;
                                   const isCorrected = category.was_corrected;
+
+                                  const norm = normalizeName(category.name);
+                                  const isMarketplace = norm === "marketplace";
+                                  const isOrderedCategory = ORDER_NORM.includes(norm);
+
+                                  // Locking rules:
+                                  // - While ordered categories are not all completed: only the next required category is allowed,
+                                  //   except Marketplace which is started via "Nová hra" (dashboard start stays disabled).
+                                  // - Non-ordered categories are locked until ordered flow is finished.
+                                  const isAllowedToStart = orderedAllDone
+                                    ? !isMarketplace
+                                    : isOrderedCategory && nextRequiredNorm === norm && !isMarketplace;
+
+                                  const startDisabledReason = (() => {
+                                    if (isCategoryCompleted) return "Kategória je už dokončená.";
+                                    if (!orderedAllDone) {
+                                      if (!isOrderedCategory) return `Najprv dokončite povinné kategórie v poradí: ${getOrderDisplay()}.`;
+                                      if (nextRequiredNorm && norm !== nextRequiredNorm)
+                                        return `Najprv dokončite: ${getLabelFromNorm(nextRequiredNorm)}.`;
+                                      if (isMarketplace) return "Obchod sa spúšťa cez „Nová hra“.";
+                                    }
+                                    if (isMarketplace) return "Obchod sa spúšťa cez „Nová hra“.";
+                                    return "";
+                                  })();
 
                                   return (
                                     <li key={category.id} className="category-list-item">
@@ -376,8 +439,12 @@ const DashboardPage = () => {
                                         <button
                                           type="button"
                                           className="btn btn-primary btn-sm"
-                                          disabled={category.name.toLowerCase() === "marketplace"}
-                                          onClick={() => handleStartCategory(session.id, category.name)}
+                                          disabled={isCategoryCompleted || !isAllowedToStart}
+                                          title={startDisabledReason}
+                                          onClick={() => {
+                                            if (isCategoryCompleted || !isAllowedToStart) return;
+                                            handleStartCategory(session.id, category.name);
+                                          }}
                                         >
                                           Spustiť kategóriu
                                         </button>

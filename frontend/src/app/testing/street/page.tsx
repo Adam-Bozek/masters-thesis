@@ -24,6 +24,7 @@ export default function Page({ params, searchParams }: PageProps) {
       scenesConfigPath="/data/scene_config.json"
       questionnaireConfigPath={`/data/${testedCategory}.json`}
       storageType="database"
+      sessionId={sessionId}
       debug
       // optional:
       // redirectTo="/dashboard/category"

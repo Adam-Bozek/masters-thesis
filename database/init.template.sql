@@ -44,8 +44,8 @@ INSERT INTO test_categories (name, question_count) VALUES
   ('Marketplace', 16),
   ('Mountains', 7),
   ('Zoo', 11),
-  ('Home', 25),
   ('Street', 13),
+  ('Home', 25),
   ('Parent_answerd', 25)
 ON CONFLICT (name) DO NOTHING;
 
