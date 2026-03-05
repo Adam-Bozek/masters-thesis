@@ -45,6 +45,7 @@ type SavePayload = {
   category_id: number;
   question_number: number;
   answer_state: string; // "2" correct, "3" incorrect
+  user_answer?: string | null;
   // selected_answer_id?: number;
 };
 
@@ -301,10 +302,15 @@ function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, ans
   const finalizeAnswer = async (q: Question, chosen: Answer) => {
     if (saveBusy) return;
     const correct = !!chosen.isCorrect;
+
+    // carry over what the user said/typed in Phase 3 (for this question)
+    const phase3UserAnswer = (q as any)?.phase3_user_answer ?? null;
+
     const payload: SavePayload = {
       category_id: categoryId,
       question_number: q.questionId,
       answer_state: correct ? "2" : "3",
+      user_answer: phase3UserAnswer,
       // selected_answer_id: chosen.answerId,
     };
 

@@ -180,6 +180,7 @@ function useBrowserSpeechRecognition(lang: string) {
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState("");
   const [finalText, setFinalText] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
@@ -214,6 +215,8 @@ function useBrowserSpeechRecognition(lang: string) {
 
     r.onerror = (e: any) => {
       console.error("[Phase3] chyba rozpoznávania reči", e);
+      const err = String(e?.error ?? e?.message ?? "").trim();
+      setError(err || "speech_recognition_error");
       setListening(false);
     };
     r.onend = () => setListening(false);
@@ -225,13 +228,24 @@ function useBrowserSpeechRecognition(lang: string) {
     if (!recognitionRef.current) return;
     setFinalText("");
     setInterim("");
+    setError(null);
     setListening(true);
-    recognitionRef.current.start();
+    try {
+      recognitionRef.current.start();
+    } catch (e: any) {
+      const msg = String(e?.message ?? "").trim();
+      setError(msg || "speech_recognition_start_failed");
+      setListening(false);
+    }
   };
 
   const stop = () => {
     if (!recognitionRef.current) return;
-    recognitionRef.current.stop();
+    try {
+      recognitionRef.current.stop();
+    } catch {
+      // ignore
+    }
     setListening(false);
   };
 
@@ -240,7 +254,7 @@ function useBrowserSpeechRecognition(lang: string) {
     setInterim("");
   };
 
-  return { supported, listening, interim, finalText, start, stop, reset };
+  return { supported, listening, interim, finalText, error, start, stop, reset };
 }
 
 function SceneFull({ config, audioTime }: { config: SceneConfigTimeline | SceneConfigSingle; audioTime: number }) {
@@ -290,17 +304,22 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
   const [saveBusy, setSaveBusy] = useState(false);
 
   const [activeIndex, setActiveIndex] = useState(0);
-  const [phase, setPhase] = useState<"nahravanie" | "kontrola" | "uprava">("nahravanie");
+  const [phase, setPhase] = useState<"nahravanie" | "kontrola" | "uprava" | "pisanie">("nahravanie");
   const [editableText, setEditableText] = useState("");
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [audioTime, setAudioTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  const { supported, listening, interim, finalText, start, stop, reset } = useBrowserSpeechRecognition("sk-SK");
+  const { supported, listening, interim, finalText, error: srError, start, stop, reset } = useBrowserSpeechRecognition("sk-SK");
+
+  const autoStopTimerRef = useRef<number | null>(null);
+  const wasListeningRef = useRef(false);
 
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
+
+  const cutoff = 400; // ms of silence before auto-stopping the microphone
 
   const scopeKey = useMemo(() => {
     // only relevant for local storage mode
@@ -451,6 +470,43 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
     };
   }, [activeQ?.questionId]);
 
+  // Auto-stop microphone after a short silence ("user stopped speaking")
+  useEffect(() => {
+    if (!listening) {
+      if (autoStopTimerRef.current != null) {
+        window.clearTimeout(autoStopTimerRef.current);
+        autoStopTimerRef.current = null;
+      }
+      return;
+    }
+
+    const hasAnyText = !!(interim || finalText).trim();
+    if (!hasAnyText) return;
+
+    if (autoStopTimerRef.current != null) window.clearTimeout(autoStopTimerRef.current);
+    autoStopTimerRef.current = window.setTimeout(() => {
+      stop();
+    }, cutoff);
+
+    return () => {
+      if (autoStopTimerRef.current != null) {
+        window.clearTimeout(autoStopTimerRef.current);
+        autoStopTimerRef.current = null;
+      }
+    };
+  }, [listening, interim, finalText, stop]);
+
+  // When recognition ends (manual stop, auto-stop, browser end), move to review automatically.
+  useEffect(() => {
+    const was = wasListeningRef.current;
+    wasListeningRef.current = listening;
+    if (!was || listening) return;
+    if (phase !== "nahravanie") return;
+
+    const txt = (finalText || interim || "").trim();
+    if (txt) setPhase("kontrola");
+  }, [listening, phase, finalText, interim]);
+
   const playAudio = async () => {
     const a = audioRef.current;
     if (!a) return;
@@ -525,7 +581,15 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
 
       let nextIncorrect = incorrect;
       if (!isBoolQuestion && !isCorrect) {
-        if (!incorrect.some((x) => x.questionId === q.questionId)) nextIncorrect = [...incorrect, q];
+        const enriched: any = { ...(q as any), phase3_user_answer: userText };
+        const idx = (incorrect as any[]).findIndex((x: any) => x.questionId === q.questionId);
+        if (idx >= 0) {
+          const copy = [...(incorrect as any[])] as any[];
+          copy[idx] = enriched;
+          nextIncorrect = copy as any;
+        } else {
+          nextIncorrect = [...incorrect, enriched as any];
+        }
       }
 
       setAnsweredIds(nextAnswered);
@@ -632,6 +696,7 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
   const liveText = (finalText || interim || "").trim();
 
   const showEditInput = phase === "uprava";
+  const showManualInput = phase === "pisanie";
   const isScene = activeQ.questionType === 3;
 
   const btn = (variant: "primary" | "outline-primary" | "outline-secondary" | "success" | "outline-success") =>
@@ -764,7 +829,7 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
 
         <div className="w-100 px-2" style={{ paddingTop: 10, paddingBottom: 10 }}>
           <div className="d-flex flex-column align-items-center" style={{ maxWidth: 1280, margin: "0 auto", gap: 10 }}>
-            {!showEditInput ? (
+            {!showEditInput && !showManualInput ? (
               <div className="w-100 text-center" style={{ minHeight: 40 }}>
                 <div className="text-muted" style={{ fontSize: 16, marginBottom: 2 }}>
                   Prepis
@@ -780,7 +845,7 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
                   )}
                 </div>
               </div>
-            ) : (
+            ) : showEditInput ? (
               <div className="w-100 text-center" style={{ maxWidth: 760 }}>
                 <div className="text-muted" style={{ fontSize: 16, marginBottom: 6 }}>
                   Upravte prepis
@@ -793,14 +858,30 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
                   placeholder="Upravte rozpoznaný text"
                 />
               </div>
+            ) : (
+              <div className="w-100 text-center" style={{ maxWidth: 760 }}>
+                <div className="text-muted" style={{ fontSize: 16, marginBottom: 6 }}>
+                  Napíšte odpoveď
+                </div>
+                <input
+                  className="form-control form-control-lg"
+                  value={editableText}
+                  onChange={(e) => setEditableText(e.target.value)}
+                  disabled={saveBusy}
+                  placeholder="Napíšte odpoveď"
+                />
+              </div>
             )}
 
             <div className="d-flex flex-wrap justify-content-center gap-2">
               <button
                 type="button"
                 className={btn("success")}
-                disabled={!supported || listening || phase !== "nahravanie" || saveBusy}
-                onClick={() => start()}
+                disabled={!supported || !!srError || listening || phase !== "nahravanie" || saveBusy}
+                onClick={() => {
+                  pauseAudio();
+                  start();
+                }}
               >
                 <i className="bi bi-mic-fill me-2" />
                 Nahrávať
@@ -809,7 +890,7 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
               <button
                 type="button"
                 className={btn("outline-success")}
-                disabled={!supported || !listening || phase !== "nahravanie" || saveBusy}
+                disabled={!supported || !!srError || !listening || phase !== "nahravanie" || saveBusy}
                 onClick={() => {
                   stop();
                   setPhase("kontrola");
@@ -817,6 +898,20 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
               >
                 <i className="bi bi-stop-fill me-2" />
                 Stop
+              </button>
+
+              <button
+                type="button"
+                className={btn("outline-primary")}
+                disabled={saveBusy || listening}
+                onClick={() => {
+                  stop();
+                  setEditableText(liveText);
+                  setPhase("pisanie");
+                }}
+              >
+                <i className="bi bi-keyboard me-2" />
+                Napísať
               </button>
 
               <button
@@ -833,7 +928,9 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
               </button>
             </div>
 
-            {!supported && <div className="text-danger small text-center">Tento prehliadač nepodporuje rozpoznávanie reči.</div>}
+            {!supported && <div className="text-danger small text-center">Tento prehliadač nepodporuje rozpoznávanie reči. Použite písanie.</div>}
+
+            {!!srError && <div className="text-danger small text-center">Rozpoznávanie reči nie je dostupné ({srError}). Použite písanie.</div>}
 
             {phase === "kontrola" && (
               <div className="d-flex flex-wrap justify-content-center gap-2">
@@ -872,6 +969,35 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
                 >
                   <i className="bi bi-arrow-repeat me-2" />
                   Znova nahrať
+                </button>
+              </div>
+            )}
+
+            {phase === "pisanie" && (
+              <div className="d-flex flex-wrap justify-content-center gap-2">
+                <button
+                  type="button"
+                  className={btn("outline-secondary")}
+                  disabled={saveBusy}
+                  onClick={() => {
+                    setPhase("nahravanie");
+                    stop();
+                    reset();
+                    setEditableText("");
+                  }}
+                >
+                  <i className="bi bi-mic-fill me-2" />
+                  Mikrofón
+                </button>
+
+                <button
+                  type="button"
+                  className={btn("primary")}
+                  disabled={saveBusy || !editableText.trim()}
+                  onClick={() => void evaluateAndFinalize(activeQ, editableText.trim())}
+                >
+                  <i className="bi bi-save2 me-2" />
+                  {saveBusy ? "Ukladám…" : "Uložiť"}
                 </button>
               </div>
             )}
