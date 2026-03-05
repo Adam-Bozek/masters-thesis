@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import withAuth from "@/utilities/WithAuth";
 
 import axiosInstance from "@/utilities/AxiosInstance";
 import SceneBuilder, { SceneConfig } from "@/components/private/SceneBuilder";
@@ -80,7 +81,7 @@ function normalizePhased(obj: any): Array<SceneConfig | undefined> {
   return [p1, p2, p4, p6];
 }
 
-export default function CategoryTestingController({
+function CategoryTestingController({
   testedCategory,
   scenesConfigPath,
   questionnaireConfigPath,
@@ -487,7 +488,7 @@ export default function CategoryTestingController({
       <Phase3Testing
         questionnaireConfigPath={questionnaireConfigPath}
         categoryId={categoryId}
-        storageType={storageType as any} // keep compatible if Phase3Testing still expects old union
+        storageType={storageType as any}
         sessionId={sid ?? undefined}
         debug={debug}
         onComplete={(incorrect: Question[]) => {
@@ -623,3 +624,5 @@ function FinalizeAndRedirect({
     </div>
   );
 }
+
+export default withAuth(CategoryTestingController);

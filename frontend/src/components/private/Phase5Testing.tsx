@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import axiosInstance from "@/utilities/AxiosInstance";
+import withAuth from "@/utilities/WithAuth";
 
 type StorageType = "local_storage" | "database";
 
@@ -112,7 +113,7 @@ function dedupeByQuestionId(list: Question[]): Question[] {
   return out;
 }
 
-export default function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, answersPath, debug = false, onComplete }: Props) {
+function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, answersPath, debug = false, onComplete }: Props) {
   const useLocal = storageType === "local_storage";
   const useDb = storageType === "database";
 
@@ -579,3 +580,5 @@ export default function Phase5Testing({ wrongQuestions, categoryId, storageType,
     </div>
   );
 }
+
+export default withAuth(Phase5Testing);

@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import axiosInstance from "@/utilities/AxiosInstance";
+import withAuth from "@/utilities/WithAuth";
 
 type StorageType = "local_storage" | "database";
 
@@ -277,15 +278,7 @@ function SceneFull({ config, audioTime }: { config: SceneConfigTimeline | SceneC
   );
 }
 
-export default function Phase3Testing({
-  questionnaireConfigPath,
-  categoryId,
-  storageType,
-  sessionId,
-  answersPath,
-  debug = false,
-  onComplete,
-}: Props) {
+function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessionId, answersPath, debug = false, onComplete }: Props) {
   const useLocal = storageType === "local_storage";
   const useDb = storageType === "database";
 
@@ -921,3 +914,5 @@ export default function Phase3Testing({
     </div>
   );
 }
+
+export default withAuth(Phase3Testing);

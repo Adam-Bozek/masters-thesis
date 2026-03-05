@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import withAuth from "@/utilities/WithAuth";
 
 export type DisplayType = "insert" | "add" | "remove_last_and_add" | "remove_all_and_add";
 
@@ -58,7 +59,7 @@ function applyEvent(current: string[], ev: NormalizedEvent): string[] {
   }
 }
 
-export default function SceneBuilder({ config, onComplete, onSkip, debug = false }: SceneBuilderProps) {
+function SceneBuilder({ config, onComplete, onSkip, debug = false }: SceneBuilderProps) {
   const events = useMemo<NormalizedEvent[]>(() => {
     const normalized = (config.pictures ?? []).map((p) => ({
       path: p.path,
@@ -307,3 +308,5 @@ export default function SceneBuilder({ config, onComplete, onSkip, debug = false
     </div>
   );
 }
+
+export default withAuth(SceneBuilder);

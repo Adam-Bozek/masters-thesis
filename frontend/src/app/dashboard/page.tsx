@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import "@/components/css/global.css";
@@ -35,6 +36,7 @@ type CategoriesState = {
 };
 
 type SessionFilter = "all" | "active" | "completed";
+type SortMode = "newest" | "oldest" | "progress";
 
 const CATEGORY_LABELS: Record<string, string> = {
   Marketplace: "Obchod",
@@ -93,17 +95,15 @@ const formatDurationMinutes = (startIso: string | null, endIso: string | null) =
   if (diffMs <= 0) return "-";
 
   const minutes = Math.round(diffMs / 60000);
-
   return `${minutes} min`;
 };
 
 const translateCategoryName = (categoryName: string) => CATEGORY_LABELS[categoryName] ?? "Zlý názov kategórie";
-
 const toCategorySlug = (categoryName: string) => categoryName.trim().toLowerCase();
 
 type StatusPillProps = {
   variant: "active" | "done" | "info";
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 const StatusPill = ({ variant, children }: StatusPillProps) => {
@@ -126,16 +126,27 @@ const getLabelFromNorm = (norm: string) => {
   return original ? translateCategoryName(String(original)) : norm;
 };
 
+const safeTs = (iso: string | null) => {
+  if (!iso) return 0;
+  const t = new Date(iso).getTime();
+  return Number.isNaN(t) ? 0 : t;
+};
+
 const DashboardPage = () => {
   const router = useRouter();
+
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [sessionsError, setSessionsError] = useState<string | null>(null);
 
   const [expandedSessionId, setExpandedSessionId] = useState<number | null>(null);
+
   const [sessionFilter, setSessionFilter] = useState<SessionFilter>("all");
+  const [sortMode, setSortMode] = useState<SortMode>("newest");
+  const [query, setQuery] = useState("");
 
   const [categoriesState, setCategoriesState] = useState<CategoriesState>({});
+  const inFlightCategories = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     const fetchSessions = async () => {
@@ -187,13 +198,32 @@ const DashboardPage = () => {
     }
   };
 
+  // Fetch ALL categories on page load (after sessions are loaded)
+  useEffect(() => {
+    if (loadingSessions || sessionsError) return;
+    if (sessions.length === 0) return;
+
+    for (const s of sessions) {
+      if (categoriesState[s.id]) continue;
+      if (inFlightCategories.current.has(s.id)) continue;
+
+      inFlightCategories.current.add(s.id);
+      fetchCategoriesForSession(s.id)
+        .catch(() => undefined)
+        .finally(() => {
+          inFlightCategories.current.delete(s.id);
+        });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadingSessions, sessionsError, sessions, categoriesState]);
+
   const handleCorrectCategory = async (sessionId: number, categoryId: number) => {
     try {
       await axiosInstance.patch(`/sessions/${sessionId}/categories/${categoryId}/correct`);
 
       setCategoriesState((prev) => {
         const sessionState = prev[sessionId];
-        if (!sessionState || !sessionState.data) return prev;
+        if (!sessionState?.data) return prev;
 
         return {
           ...prev,
@@ -233,49 +263,145 @@ const DashboardPage = () => {
   };
 
   const handleToggleSession = (sessionId: number) => {
-    const willOpen = expandedSessionId !== sessionId;
-
     setExpandedSessionId((prev) => (prev === sessionId ? null : sessionId));
-
-    if (willOpen && !categoriesState[sessionId]) {
-      void fetchCategoriesForSession(sessionId);
-    }
   };
 
-  const filteredSessions = sessions.filter((s) => {
-    if (sessionFilter === "active") return !s.completed_at;
-    if (sessionFilter === "completed") return !!s.completed_at;
-    return true;
-  });
+  const headerStats = useMemo(() => {
+    const total = sessions.length;
+    const active = sessions.filter((s) => !s.completed_at).length;
+    const done = sessions.filter((s) => !!s.completed_at).length;
+    return { total, active, done };
+  }, [sessions]);
+
+  const filteredSessions = useMemo(() => {
+    const q = query.trim().toLowerCase();
+
+    const enriched = sessions.map((s) => {
+      const cats = categoriesState[s.id]?.data ?? null;
+      const totalCats = cats?.length ?? 0;
+      const completedCats = cats ? cats.filter((c) => !!c.completed_at).length : 0;
+      const progress = totalCats > 0 ? completedCats / totalCats : -1; // -1 = unknown yet
+      return {
+        ...s,
+        _ts: safeTs(s.started_at),
+        _totalCats: totalCats,
+        _completedCats: completedCats,
+        _progress: progress,
+      };
+    });
+
+    const statusFiltered = enriched.filter((s) => {
+      if (sessionFilter === "active") return !s.completed_at;
+      if (sessionFilter === "completed") return !!s.completed_at;
+      return true;
+    });
+
+    const queryFiltered =
+      q.length === 0
+        ? statusFiltered
+        : statusFiltered.filter((s) => {
+            const idStr = String(s.id);
+            const dateStr = formatDate(s.started_at);
+            const dateTimeStr = formatDateTime(s.started_at);
+            return idStr.includes(q) || dateStr.toLowerCase().includes(q) || dateTimeStr.toLowerCase().includes(q);
+          });
+
+    const sorted = [...queryFiltered].sort((a, b) => {
+      if (sortMode === "oldest") return a._ts - b._ts;
+      if (sortMode === "progress") {
+        // known progress first, then highest progress, then newest
+        const ap = a._progress;
+        const bp = b._progress;
+        const aKnown = ap >= 0 ? 1 : 0;
+        const bKnown = bp >= 0 ? 1 : 0;
+        if (aKnown !== bKnown) return bKnown - aKnown;
+        if (ap !== bp) return bp - ap;
+        return b._ts - a._ts;
+      }
+      // newest
+      return b._ts - a._ts;
+    });
+
+    return sorted;
+  }, [sessions, categoriesState, sessionFilter, sortMode, query]);
 
   return (
     <>
       <Header />
       <main className="container d-flex flex-column align-items-start">
         <div className="glass p-3 p-lg-4 mb-4 w-100">
-          <div className="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
-            <h1 className={`${styles.dashTitle} mb-0`}>Prehľad testov</h1>
+          <div className="d-flex flex-column gap-3">
+            <div className="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+              <div className="d-flex flex-column gap-1">
+                <h1 className={`${styles.dashTitle} mb-0`}>Prehľad testov</h1>
+                <div className="d-flex flex-wrap gap-2 small">
+                  <StatusPill variant="info">Spolu: {headerStats.total}</StatusPill>
+                  <StatusPill variant="active">Prebieha: {headerStats.active}</StatusPill>
+                  <StatusPill variant="done">Ukončené: {headerStats.done}</StatusPill>
+                </div>
+              </div>
 
-            <div className="segmented">
-              <button type="button" className={`segBtn ${sessionFilter === "all" ? "active" : ""}`} onClick={() => setSessionFilter("all")}>
-                Všetky
-              </button>
-              <button type="button" className={`segBtn ${sessionFilter === "active" ? "active" : ""}`} onClick={() => setSessionFilter("active")}>
-                Prebieha
-              </button>
-              <button
-                type="button"
-                className={`segBtn ${sessionFilter === "completed" ? "active" : ""}`}
-                onClick={() => setSessionFilter("completed")}
-              >
-                Ukončené
-              </button>
+              {/* Filter bar */}
+              <div className={styles.filterBar}>
+                <div className={styles.filterPills}>
+                  <button
+                    type="button"
+                    className={`status-pill status-pill--info ${styles.filterPill} ${sessionFilter === "all" ? styles.filterPillActive : ""}`}
+                    onClick={() => setSessionFilter("all")}
+                    aria-pressed={sessionFilter === "all"}
+                  >
+                    Všetky <span className={styles.filterCount}>{headerStats.total}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`status-pill status-pill--active ${styles.filterPill} ${sessionFilter === "active" ? styles.filterPillActive : ""}`}
+                    onClick={() => setSessionFilter("active")}
+                    aria-pressed={sessionFilter === "active"}
+                  >
+                    Prebieha <span className={styles.filterCount}>{headerStats.active}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`status-pill status-pill--done ${styles.filterPill} ${sessionFilter === "completed" ? styles.filterPillActive : ""}`}
+                    onClick={() => setSessionFilter("completed")}
+                    aria-pressed={sessionFilter === "completed"}
+                  >
+                    Ukončené <span className={styles.filterCount}>{headerStats.done}</span>
+                  </button>
+                </div>
+
+                <div className={styles.filterControls}>
+                  <input
+                    className={`form-control form-control-sm glass-input ${styles.searchInput}`}
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Hľadať (ID alebo dátum)"
+                    aria-label="Hľadať sedenia"
+                  />
+
+                  <select
+                    className={`form-select form-select-sm glass-input ${styles.sortSelect}`}
+                    value={sortMode}
+                    onChange={(e) => setSortMode(e.target.value as SortMode)}
+                    aria-label="Zoradenie sedení"
+                  >
+                    <option value="newest">Najnovšie</option>
+                    <option value="oldest">Najstaršie</option>
+                    <option value="progress">Podľa progresu</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-2">
+              <p className="mb-0">Tu nájdete všetky vaše testovacie sedenia a stav jednotlivých kategórií.</p>
+              <div className="small text-muted">
+                <span className="fw-semibold">Poradie:</span> {getOrderDisplay()}
+              </div>
             </div>
           </div>
-
-          <p className="mb-0">
-            Tu nájdete všetky vaše testovacie sedenia. Kliknutím na testovanie zobrazíte podrobnosti a stav jednotlivých kategórií.
-          </p>
 
           {loadingSessions && <p className="mt-3 mb-0">Načítavam testovania...</p>}
 
@@ -288,6 +414,12 @@ const DashboardPage = () => {
           {!loadingSessions && !sessionsError && sessions.length === 0 && <p className="mt-3 mb-0">Zatiaľ nemáte žiadne testovania.</p>}
         </div>
 
+        {!loadingSessions && !sessionsError && filteredSessions.length === 0 && (
+          <div className="glass p-3 w-100">
+            <p className="mb-0 small text-muted">Nenašli sa žiadne testovania pre zadaný filter.</p>
+          </div>
+        )}
+
         {!loadingSessions && !sessionsError && filteredSessions.length > 0 && (
           <div className="w-100 d-flex flex-column mb-3">
             {filteredSessions.map((session) => {
@@ -296,13 +428,13 @@ const DashboardPage = () => {
 
               const catState = categoriesState[session.id];
               const categories = catState?.data ?? [];
-              const catsLoading = catState?.loading ?? false;
+              const catsLoading = catState?.loading ?? true; // true until fetched
               const catsError = catState?.error ?? null;
-              const hasFetchedCats = !!catState;
-
-              const completedCount = categories.filter((c) => !!c.completed_at).length;
-              const correctedCount = categories.filter((c) => c.was_corrected).length;
               const hasCategories = categories.length > 0;
+
+              const completedCount = hasCategories ? categories.filter((c) => !!c.completed_at).length : 0;
+              const correctedCount = hasCategories ? categories.filter((c) => c.was_corrected).length : 0;
+              const progressPct = hasCategories ? Math.round((completedCount / categories.length) * 100) : 0;
 
               const nextRequiredNorm = hasCategories ? getNextRequiredNorm(categories) : null;
               const orderedAllDone = hasCategories ? nextRequiredNorm === null : false;
@@ -318,22 +450,52 @@ const DashboardPage = () => {
                           onClick={() => handleToggleSession(session.id)}
                         >
                           <div className="d-flex flex-column w-100 gap-2">
-                            <div className="d-flex flex-wrap align-items-center gap-2">
-                              <strong>Testovanie</strong>
-                              <span className="small text-muted">zo dňa: {formatDate(session.started_at)}</span>
-                              <StatusPill variant={isCompleted ? "done" : "active"}>{isCompleted ? "Ukončené" : "Prebieha"}</StatusPill>
+                            <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                              <div className="d-flex flex-wrap align-items-center gap-2">
+                                <strong>Testovanie</strong>
+                                <span className="small text-muted">zo dňa: {formatDate(session.started_at)}</span>
+                                <StatusPill variant={isCompleted ? "done" : "active"}>{isCompleted ? "Ukončené" : "Prebieha"}</StatusPill>
+                              </div>
+
+                              {catsLoading ? (
+                                <span className="small text-muted">Načítavam kategórie...</span>
+                              ) : hasCategories ? (
+                                <span className="small text-muted">
+                                  Dokončené: <span className="fw-semibold">{completedCount}</span>/{categories.length} • Skontrolované:{" "}
+                                  <span className="fw-semibold">{correctedCount}</span>/{categories.length}
+                                </span>
+                              ) : (
+                                <span className="small text-muted">Žiadne kategórie</span>
+                              )}
                             </div>
 
-                            {hasCategories && (
-                              <div className="d-flex flex-wrap gap-2 small">
-                                <StatusPill variant="info">
-                                  Dokončené kategórie: {completedCount}/{categories.length}
-                                </StatusPill>
-                                <StatusPill variant="info">
-                                  Skontrolované: {correctedCount}/{categories.length}
-                                </StatusPill>
+                            {!catsLoading && hasCategories && (
+                              <div className="d-flex flex-column gap-1">
+                                <div className="progress" style={{ height: 8 }}>
+                                  <div
+                                    className="progress-bar"
+                                    role="progressbar"
+                                    style={{ width: `${progressPct}%` }}
+                                    aria-valuenow={progressPct}
+                                    aria-valuemin={0}
+                                    aria-valuemax={100}
+                                  />
+                                </div>
+
+                                {!isCompleted && (
+                                  <div className="small text-muted">
+                                    <span className="fw-semibold">Ďalšia kategória:</span>{" "}
+                                    {orderedAllDone
+                                      ? "Všetky povinné kategórie sú dokončené."
+                                      : nextRequiredNorm === "marketplace"
+                                        ? `${getLabelFromNorm(nextRequiredNorm)} (spúšťa sa cez „Nová hra“).`
+                                        : getLabelFromNorm(nextRequiredNorm ?? "")}
+                                  </div>
+                                )}
                               </div>
                             )}
+
+                            {!catsLoading && catsError && <div className="small text-danger">Chyba: {catsError}</div>}
                           </div>
                         </button>
                       </h2>
@@ -341,79 +503,110 @@ const DashboardPage = () => {
                       <div className={`accordion-collapse collapse ${isOpen ? "show" : ""}`}>
                         <div className="accordion-body">
                           <div className="mb-3">
-                            <p className="mb-1">
-                              <strong>Začiatok:</strong> {formatDateTime(session.started_at)}
-                            </p>
-                            <p className="mb-1">
-                              <strong>Ukončené:</strong> {formatDateTime(session.completed_at)}
-                            </p>
-                            <p className="mb-0">
-                              <strong>Stav:</strong> {isCompleted ? "Ukončené" : "Prebieha"}
-                            </p>
-                          </div>
-
-                          <div className="mt-3">
-                            {catsLoading && <p className="mb-0 small">Načítavam kategórie...</p>}
-
-                            {catsError && <p className="mb-0 small text-danger">Chyba pri načítaní kategórií: {catsError}</p>}
-
-                            {!catsLoading && !catsError && hasFetchedCats && categories.length === 0 && (
-                              <p className="mb-0 small text-muted">Žiadne kategórie pre toto sedenie.</p>
-                            )}
-
-                            {!catsLoading && !catsError && hasCategories && !isCompleted && (
-                              <div className="alert alert-info py-2 px-3 mb-3" role="alert">
-                                <div className="small">
-                                  <strong>Poradie:</strong> {getOrderDisplay()}
-                                </div>
-                                <div className="small mt-1">
-                                  <strong>Ďalšia kategória:</strong>{" "}
-                                  {orderedAllDone
-                                    ? "Všetky povinné kategórie sú dokončené."
-                                    : nextRequiredNorm === "marketplace"
-                                      ? `${getLabelFromNorm(nextRequiredNorm)} (spúšťa sa cez „Nová hra“).`
-                                      : getLabelFromNorm(nextRequiredNorm ?? "")}
+                            <div className="row g-2">
+                              <div className="col-12 col-lg-4">
+                                <div className="p-2 rounded border bg-transparent">
+                                  <div className="small text-muted">Začiatok</div>
+                                  <div className="fw-semibold">{formatDateTime(session.started_at)}</div>
                                 </div>
                               </div>
-                            )}
+                              <div className="col-12 col-lg-4">
+                                <div className="p-2 rounded border bg-transparent">
+                                  <div className="small text-muted">Ukončené</div>
+                                  <div className="fw-semibold">{formatDateTime(session.completed_at)}</div>
+                                </div>
+                              </div>
+                              <div className="col-12 col-lg-4">
+                                <div className="p-2 rounded border bg-transparent">
+                                  <div className="small text-muted">Stav</div>
+                                  <div className="fw-semibold">{isCompleted ? "Ukončené" : "Prebieha"}</div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
 
-                            {!catsLoading && !catsError && categories.length > 0 && (
-                              <ul className="category-list">
-                                {categories.map((category) => {
-                                  const isCategoryCompleted = !!category.completed_at;
-                                  const startedAt = category.started_at;
-                                  const completedAt = category.completed_at;
-                                  const isCorrected = category.was_corrected;
+                          {catsLoading && (
+                            <div className="d-flex flex-column gap-2">
+                              <div className="placeholder-glow">
+                                <span className="placeholder col-12" />
+                              </div>
+                              <div className="placeholder-glow">
+                                <span className="placeholder col-10" />
+                              </div>
+                              <div className="placeholder-glow">
+                                <span className="placeholder col-8" />
+                              </div>
+                            </div>
+                          )}
 
-                                  const norm = normalizeName(category.name);
-                                  const isMarketplace = norm === "marketplace";
-                                  const isOrderedCategory = ORDER_NORM.includes(norm);
+                          {!catsLoading && !catsError && !hasCategories && (
+                            <p className="mb-0 small text-muted">Žiadne kategórie pre toto sedenie.</p>
+                          )}
 
-                                  // Locking rules:
-                                  // - While ordered categories are not all completed: only the next required category is allowed,
-                                  //   except Marketplace which is started via "Nová hra" (dashboard start stays disabled).
-                                  // - Non-ordered categories are locked until ordered flow is finished.
-                                  const isAllowedToStart = orderedAllDone
-                                    ? !isMarketplace
-                                    : isOrderedCategory && nextRequiredNorm === norm && !isMarketplace;
+                          {!catsLoading && !catsError && hasCategories && !isCompleted && (
+                            <div className="alert alert-info py-2 px-3 mb-3" role="alert">
+                              <div className="small">
+                                <strong>Poradie:</strong> {getOrderDisplay()}
+                              </div>
+                              <div className="small mt-1">
+                                <strong>Ďalšia kategória:</strong>{" "}
+                                {orderedAllDone
+                                  ? "Všetky povinné kategórie sú dokončené."
+                                  : nextRequiredNorm === "marketplace"
+                                    ? `${getLabelFromNorm(nextRequiredNorm)} (spúšťa sa cez „Nová hra“).`
+                                    : getLabelFromNorm(nextRequiredNorm ?? "")}
+                              </div>
+                            </div>
+                          )}
 
-                                  const startDisabledReason = (() => {
-                                    if (isCategoryCompleted) return "Kategória je už dokončená.";
-                                    if (!orderedAllDone) {
-                                      if (!isOrderedCategory) return `Najprv dokončite povinné kategórie v poradí: ${getOrderDisplay()}.`;
-                                      if (nextRequiredNorm && norm !== nextRequiredNorm)
-                                        return `Najprv dokončite: ${getLabelFromNorm(nextRequiredNorm)}.`;
-                                      if (isMarketplace) return "Obchod sa spúšťa cez „Nová hra“.";
-                                    }
+                          {!catsLoading && !catsError && hasCategories && (
+                            <ul className="category-list">
+                              {categories.map((category) => {
+                                const isCategoryCompleted = !!category.completed_at;
+                                const startedAt = category.started_at;
+                                const completedAt = category.completed_at;
+                                const isCorrected = category.was_corrected;
+
+                                const norm = normalizeName(category.name);
+                                const isMarketplace = norm === "marketplace";
+                                const isOrderedCategory = ORDER_NORM.includes(norm);
+                                const orderIndex = ORDER_NORM.indexOf(norm);
+
+                                const nextIsThis = !orderedAllDone && nextRequiredNorm === norm;
+
+                                const isAllowedToStart = orderedAllDone
+                                  ? !isMarketplace
+                                  : isOrderedCategory && nextRequiredNorm === norm && !isMarketplace;
+
+                                const startDisabledReason = (() => {
+                                  if (isCategoryCompleted) return "Kategória je už dokončená.";
+                                  if (!orderedAllDone) {
+                                    if (!isOrderedCategory) return `Najprv dokončite povinné kategórie v poradí: ${getOrderDisplay()}.`;
+                                    if (nextRequiredNorm && norm !== nextRequiredNorm)
+                                      return `Najprv dokončite: ${getLabelFromNorm(nextRequiredNorm)}.`;
                                     if (isMarketplace) return "Obchod sa spúšťa cez „Nová hra“.";
-                                    return "";
-                                  })();
+                                  }
+                                  if (isMarketplace) return "Obchod sa spúšťa cez „Nová hra“.";
+                                  return "";
+                                })();
 
-                                  return (
-                                    <li key={category.id} className="category-list-item">
-                                      <div className="category-main">
+                                return (
+                                  <li
+                                    key={category.id}
+                                    className={`category-list-item ${nextIsThis ? "border border-2 border-primary rounded" : ""}`}
+                                  >
+                                    <div className="category-main">
+                                      <div className="d-flex align-items-center gap-2 flex-wrap">
+                                        {orderIndex >= 0 && (
+                                          <span className="badge bg-light text-dark border" title="Poradie kategórie">
+                                            {orderIndex + 1}
+                                          </span>
+                                        )}
                                         <span className="fw-semibold">Kategória: {translateCategoryName(category.name)}</span>
+                                        {nextIsThis && !isMarketplace && <span className="badge bg-primary">Ďalšia</span>}
+                                      </div>
 
+                                      <div className="d-flex flex-wrap gap-2 mt-1">
                                         <StatusPill variant={isCategoryCompleted ? "done" : "active"}>
                                           {isCategoryCompleted ? "Dokončená" : "Nedokončená"}
                                         </StatusPill>
@@ -421,40 +614,47 @@ const DashboardPage = () => {
                                         <StatusPill variant={isCorrected ? "done" : "active"}>
                                           {isCorrected ? "Skontrolovaná" : "Neskontrolovaná"}
                                         </StatusPill>
+                                      </div>
 
+                                      <div className="d-flex flex-wrap gap-3 mt-1">
                                         <span className="small text-muted">Začiatok: {startedAt ? formatDateTime(startedAt) : "-"}</span>
                                         <span className="small text-muted">Čas vyplňania: {formatDurationMinutes(startedAt, completedAt)}</span>
                                       </div>
 
-                                      <div className="category-actions">
-                                        <button
-                                          type="button"
-                                          className="btn btn-outline-secondary btn-sm"
-                                          disabled={!isCategoryCompleted || isCorrected}
-                                          onClick={() => handleCorrectCategory(session.id, category.id)}
-                                        >
-                                          {isCorrected ? "Skontrolovaná" : "Opraviť"}
-                                        </button>
+                                      {!isAllowedToStart && !isCategoryCompleted && startDisabledReason && (
+                                        <div className="small text-muted mt-1">{startDisabledReason}</div>
+                                      )}
+                                    </div>
 
-                                        <button
-                                          type="button"
-                                          className="btn btn-primary btn-sm"
-                                          disabled={isCategoryCompleted || !isAllowedToStart}
-                                          title={startDisabledReason}
-                                          onClick={() => {
-                                            if (isCategoryCompleted || !isAllowedToStart) return;
-                                            handleStartCategory(session.id, category.name);
-                                          }}
-                                        >
-                                          Spustiť kategóriu
-                                        </button>
-                                      </div>
-                                    </li>
-                                  );
-                                })}
-                              </ul>
-                            )}
-                          </div>
+                                    <div className="category-actions">
+                                      <button
+                                        type="button"
+                                        className="btn btn-outline-secondary btn-sm"
+                                        disabled={!isCategoryCompleted || isCorrected}
+                                        onClick={() => handleCorrectCategory(session.id, category.id)}
+                                      >
+                                        {isCorrected ? "Skontrolovaná" : "Opraviť"}
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        className="btn btn-primary btn-sm"
+                                        disabled={isCategoryCompleted || !isAllowedToStart}
+                                        aria-disabled={isCategoryCompleted || !isAllowedToStart}
+                                        title={startDisabledReason}
+                                        onClick={() => {
+                                          if (isCategoryCompleted || !isAllowedToStart) return;
+                                          handleStartCategory(session.id, category.name);
+                                        }}
+                                      >
+                                        Spustiť kategóriu
+                                      </button>
+                                    </div>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
                         </div>
                       </div>
                     </div>

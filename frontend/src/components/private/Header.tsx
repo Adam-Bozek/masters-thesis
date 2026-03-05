@@ -3,6 +3,7 @@
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Navbar, Button } from "react-bootstrap";
 import { useAuth } from "@/utilities/AuthContext";
+import withAuth from "@/utilities/WithAuth";
 
 const Header = () => {
   const { user, logout } = useAuth();
@@ -36,4 +37,4 @@ const Header = () => {
   );
 };
 
-export default Header;
+export default withAuth(Header);

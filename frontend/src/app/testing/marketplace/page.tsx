@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import withAuth from "@/utilities/WithAuth";
 import CategoryTestingController from "@/components/private/Controller";
 
 type PageProps = {
@@ -8,7 +9,7 @@ type PageProps = {
   searchParams?: { sessionId?: string };
 };
 
-export default function Page({ params, searchParams }: PageProps) {
+function Page({ params, searchParams }: PageProps) {
   const sessionId = useMemo(() => {
     const raw = searchParams?.sessionId;
     if (!raw) return undefined;
@@ -31,3 +32,5 @@ export default function Page({ params, searchParams }: PageProps) {
     />
   );
 }
+
+export default withAuth(Page);
