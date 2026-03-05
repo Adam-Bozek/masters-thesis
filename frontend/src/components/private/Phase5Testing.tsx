@@ -114,6 +114,51 @@ function dedupeByQuestionId(list: Question[]): Question[] {
   return out;
 }
 
+function LoadingImageFill({
+  src,
+  alt,
+  sizes,
+  style,
+  priority,
+}: {
+  src: string;
+  alt: string;
+  sizes: string;
+  style?: React.CSSProperties;
+  priority?: boolean;
+}) {
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    setLoaded(false);
+  }, [src]);
+
+  return (
+    <>
+      {!loaded && (
+        <div className="position-absolute top-50 start-50 translate-middle">
+          <div className="spinner-border" role="status" aria-label="Loading">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      )}
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        sizes={sizes}
+        priority={priority}
+        onLoadingComplete={() => setLoaded(true)}
+        style={{
+          ...(style ?? {}),
+          opacity: loaded ? 1 : 0,
+          transition: "opacity 120ms ease",
+        }}
+      />
+    </>
+  );
+}
+
 function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, answersPath, debug = false, onComplete }: Props) {
   const useLocal = storageType === "local_storage";
   const useDb = storageType === "database";
@@ -562,10 +607,9 @@ function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, ans
                         }}
                       >
                         <div style={{ position: "relative", width: "100%", height: imgBoxHeight, borderRadius: 10, overflow: "hidden" }}>
-                          <Image
+                          <LoadingImageFill
                             src={a.imagePath}
                             alt={a.label ?? ""}
-                            fill
                             sizes="(max-width: 768px) 45vw, (max-width: 1200px) 28vw, 22vw"
                             style={{ objectFit: "contain" }}
                           />

@@ -257,6 +257,51 @@ function useBrowserSpeechRecognition(lang: string) {
   return { supported, listening, interim, finalText, error, start, stop, reset };
 }
 
+function LoadingImageFill({
+  src,
+  alt,
+  sizes,
+  style,
+  priority,
+}: {
+  src: string;
+  alt: string;
+  sizes: string;
+  style?: React.CSSProperties;
+  priority?: boolean;
+}) {
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    setLoaded(false);
+  }, [src]);
+
+  return (
+    <>
+      {!loaded && (
+        <div className="position-absolute top-50 start-50 translate-middle">
+          <div className="spinner-border" role="status" aria-label="Loading">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      )}
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        sizes={sizes}
+        priority={priority}
+        onLoadingComplete={() => setLoaded(true)}
+        style={{
+          ...(style ?? {}),
+          opacity: loaded ? 1 : 0,
+          transition: "opacity 120ms ease",
+        }}
+      />
+    </>
+  );
+}
+
 function SceneFull({ config, audioTime }: { config: SceneConfigTimeline | SceneConfigSingle; audioTime: number }) {
   const imgs = useMemo(() => computeSceneImages(config, audioTime), [config, audioTime]);
   const n = imgs.length;
@@ -265,7 +310,7 @@ function SceneFull({ config, audioTime }: { config: SceneConfigTimeline | SceneC
     return (
       <div className="w-100 h-100" style={{ position: "relative" }}>
         {imgs[0] ? (
-          <Image src={imgs[0]} alt="" fill sizes="100vw" style={{ objectFit: "contain" }} priority />
+          <LoadingImageFill src={imgs[0]} alt="" sizes="100vw" style={{ objectFit: "contain" }} priority />
         ) : (
           <div className="w-100 h-100 d-flex align-items-center justify-content-center text-muted">Scéna je pripravená</div>
         )}
@@ -285,7 +330,7 @@ function SceneFull({ config, audioTime }: { config: SceneConfigTimeline | SceneC
             minHeight: 140,
           }}
         >
-          <Image src={src} alt="" fill sizes={n === 2 ? "48vw" : "32vw"} style={{ objectFit: "contain" }} />
+          <LoadingImageFill src={src} alt="" sizes={n === 2 ? "48vw" : "32vw"} style={{ objectFit: "contain" }} />
         </div>
       ))}
     </div>
@@ -318,8 +363,6 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
 
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
-
-  const cutoff = 400; // ms of silence before auto-stopping the microphone
 
   const scopeKey = useMemo(() => {
     // only relevant for local storage mode
@@ -486,7 +529,7 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
     if (autoStopTimerRef.current != null) window.clearTimeout(autoStopTimerRef.current);
     autoStopTimerRef.current = window.setTimeout(() => {
       stop();
-    }, cutoff);
+    }, 1300);
 
     return () => {
       if (autoStopTimerRef.current != null) {
@@ -812,10 +855,9 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
               </div>
             ) : stimulusImage ? (
               <div style={{ position: "relative", width: "min(86vw, 1100px)", height: "52dvh", maxHeight: "52dvh" }}>
-                <Image
+                <LoadingImageFill
                   src={stimulusImage}
                   alt=""
-                  fill
                   sizes="(max-width: 1100px) 86vw, 1100px"
                   style={{ objectFit: "contain", borderRadius: 12 }}
                   priority
