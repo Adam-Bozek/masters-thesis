@@ -1,11 +1,18 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import axiosInstance from "@/utilities/AxiosInstance";
 import withAuth from "@/utilities/WithAuth";
+import { phase3RuntimeConfig as sharedPhase3RuntimeConfig } from "./componentRuntimeConfigs";
+
+/* -------------------------------------------------------------------------------------------------
+ * Types
+ * -----------------------------------------------------------------------------------------------*/
 
 type StorageType = "local_storage" | "database";
+type Phase3UiMode = "recording" | "review" | "editing" | "typing";
+type DisplayType = "insert" | "add" | "remove" | "remove_last_and_add" | "remove_all_and_add";
 
 type Answer = {
   answerId: number;
@@ -14,15 +21,15 @@ type Answer = {
   imagePath: string;
 };
 
-type DisplayType = "insert" | "add" | "remove" | "remove_last_and_add" | "remove_all_and_add";
+type SceneTimelineItem = {
+  path: string;
+  display_time: string | number;
+  display_type: DisplayType;
+};
 
 type SceneConfigTimeline = {
   sound_path: string;
-  pictures: Array<{
-    path: string;
-    display_time: string | number;
-    display_type: DisplayType;
-  }>;
+  pictures: SceneTimelineItem[];
 };
 
 type SceneConfigSingle = {
@@ -37,236 +44,444 @@ type BaseQuestion = {
   acceptedTranscripts: string[];
 };
 
-type Question =
-  | (BaseQuestion & { questionType: 1; answers: Answer[] })
-  | (BaseQuestion & { questionType: 2; questionText2: string; questionAudioPath2: string; answers: Answer[] })
-  | (BaseQuestion & { questionType: 3; config: SceneConfigTimeline | SceneConfigSingle })
-  | (BaseQuestion & { questionType: 4; imagePath: string });
+type QuestionType1 = BaseQuestion & {
+  questionType: 1;
+  answers: Answer[];
+};
+
+type QuestionType2 = BaseQuestion & {
+  questionType: 2;
+  questionText2: string;
+  questionAudioPath2: string;
+  answers: Answer[];
+};
+
+type QuestionType3 = BaseQuestion & {
+  questionType: 3;
+  config: SceneConfigTimeline | SceneConfigSingle;
+};
+
+type QuestionType4 = BaseQuestion & {
+  questionType: 4;
+  imagePath: string;
+};
+
+type Question = QuestionType1 | QuestionType2 | QuestionType3 | QuestionType4;
 
 type SavePayload = {
   category_id: number;
   question_number: number;
-  answer_state: string; // "1" or "true"
+  answer_state: string;
   user_answer?: string | null;
+};
+
+type PersistedQuestion = Question & {
+  phase3_user_answer?: string;
+};
+
+type SpeechRecognitionAlternativeLike = {
+  transcript?: string;
+};
+
+type SpeechRecognitionResultLike = {
+  isFinal?: boolean;
+  0?: SpeechRecognitionAlternativeLike;
+};
+
+type SpeechRecognitionEventLike = {
+  resultIndex: number;
+  results: ArrayLike<SpeechRecognitionResultLike>;
+};
+
+type SpeechRecognitionErrorLike = {
+  error?: string;
+  message?: string;
+};
+
+type BrowserSpeechRecognition = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorLike) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+
+type Phase3RuntimeConfig = {
+  speechLanguage: string;
+  speechSilenceTimeoutMs: number;
+  swipeThresholdPx: number;
+  sceneTimeEpsilonSeconds: number;
+  imageFadeDurationMs: number;
+  questionType1Prompt: string;
+  questionType1AudioPath: string;
+  sceneEmptyStateText: string;
 };
 
 type Props = {
   questionnaireConfigPath: string;
   categoryId: number;
   storageType: StorageType;
-
   sessionId?: number;
   answersPath?: (sessionId: number) => string;
-
   debug?: boolean;
+  config?: Partial<Phase3RuntimeConfig>;
   onComplete?: (incorrectQuestions: Question[]) => void;
 };
 
-const defaultAnswersPath = (id: number) => `/sessions/${id}/answers`;
+/* -------------------------------------------------------------------------------------------------
+ * Config
+ * -----------------------------------------------------------------------------------------------*/
 
-// Crypto shuffle (no seed, always fresh)
-function cryptoRandInt(maxExclusive: number): number {
+const DEFAULT_ANSWERS_PATH = (sessionId: number) => `/sessions/${sessionId}/answers`;
+
+const DEFAULT_PHASE3_CONFIG: Phase3RuntimeConfig = sharedPhase3RuntimeConfig;
+
+const PHASE3_LOCAL_STORAGE_KEYS = {
+  answered: "answered",
+  incorrect: "incorrect",
+  answersPayload: "answers_payload",
+} as const;
+
+/* -------------------------------------------------------------------------------------------------
+ * Helpers
+ * -----------------------------------------------------------------------------------------------*/
+
+function getCryptoRandomInt(maxExclusive: number): number {
   if (maxExclusive <= 1) return 0;
-  const cryptoObj = globalThis.crypto;
-  if (!cryptoObj?.getRandomValues) return Math.floor(Math.random() * maxExclusive);
 
-  const range = 0xffffffff;
-  const limit = Math.floor(range / maxExclusive) * maxExclusive; // rejection sampling
-  const buf = new Uint32Array(1);
+  const cryptoApi = globalThis.crypto;
+  if (!cryptoApi?.getRandomValues) {
+    return Math.floor(Math.random() * maxExclusive);
+  }
+
+  const maxUint32 = 0xffffffff;
+  const acceptedRange = Math.floor(maxUint32 / maxExclusive) * maxExclusive;
+  const buffer = new Uint32Array(1);
 
   while (true) {
-    cryptoObj.getRandomValues(buf);
-    const x = buf[0] >>> 0;
-    if (x < limit) return x % maxExclusive;
+    cryptoApi.getRandomValues(buffer);
+    const candidate = buffer[0] >>> 0;
+    if (candidate < acceptedRange) {
+      return candidate % maxExclusive;
+    }
   }
 }
 
-function shuffleRandom<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = cryptoRandInt(i + 1);
-    [a[i], a[j]] = [a[j], a[i]];
+function shuffleArray<T>(items: T[]): T[] {
+  const next = [...items];
+
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const randomIndex = getCryptoRandomInt(index + 1);
+    [next[index], next[randomIndex]] = [next[randomIndex], next[index]];
   }
-  return a;
+
+  return next;
 }
 
-function parseTimeToSeconds(v: string | number): number {
-  if (typeof v === "number" && Number.isFinite(v)) return Math.max(0, v);
-  const s = String(v).trim();
-  if (!s) return 0;
-  if (/^\d+$/.test(s)) return Math.max(0, Number(s));
+function parseTimeToSeconds(value: string | number): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(0, value);
+  }
 
-  const parts = s.split(":").map((p) => p.trim());
-  if (parts.some((p) => p === "" || !/^\d+$/.test(p))) return 0;
-  const nums = parts.map(Number);
+  const input = String(value).trim();
+  if (!input) return 0;
 
-  if (nums.length === 2) return nums[0] * 60 + nums[1];
-  if (nums.length === 3) return nums[0] * 3600 + nums[1] * 60 + nums[2];
+  if (/^\d+$/.test(input)) {
+    return Math.max(0, Number(input));
+  }
+
+  const parts = input.split(":").map((part) => part.trim());
+  if (parts.some((part) => !part || !/^\d+$/.test(part))) {
+    return 0;
+  }
+
+  const numbers = parts.map(Number);
+  if (numbers.length === 2) {
+    return numbers[0] * 60 + numbers[1];
+  }
+
+  if (numbers.length === 3) {
+    return numbers[0] * 3600 + numbers[1] * 60 + numbers[2];
+  }
+
   return 0;
 }
 
-function normalizeTranscript(s: string): string {
-  const trimmed = (s ?? "").trim().toLowerCase();
-  const noPunct = trimmed.replace(/[^\p{L}\p{N}\s-]+/gu, " ");
-  const collapsed = noPunct.replace(/\s+/g, " ").trim();
-  return collapsed.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+function normalizeTranscript(input: string): string {
+  const lower = (input ?? "").trim().toLowerCase();
+  const withoutPunctuation = lower.replace(/[^\p{L}\p{N}\s-]+/gu, " ");
+  const collapsedWhitespace = withoutPunctuation.replace(/\s+/g, " ").trim();
+
+  return collapsedWhitespace.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-function getPromptText(q: Question): string {
-  if (q.questionType === 1) return "Čo je na tomto obrázku?";
-  return q.questionText;
+function buildStorageScopeKey(categoryId: number, questionnaireConfigPath: string): string {
+  return `phase3:${categoryId}:${questionnaireConfigPath}`;
 }
 
-function getAudioSrc(q: Question): string {
-  if (q.questionType === 1) return "/sounds/testing/čjnto.mp3";
-  if (q.questionType === 2) return q.questionAudioPath;
-  if (q.questionType === 3) {
-    const c: any = q.config;
-    if (typeof c?.sound_path === "string" && c.sound_path) return c.sound_path;
+function buildStorageKey(scopeKey: string, key: (typeof PHASE3_LOCAL_STORAGE_KEYS)[keyof typeof PHASE3_LOCAL_STORAGE_KEYS]): string {
+  return `${scopeKey}:${key}`;
+}
+
+function isTimelineSceneConfig(config: SceneConfigTimeline | SceneConfigSingle): config is SceneConfigTimeline {
+  return Array.isArray((config as SceneConfigTimeline).pictures);
+}
+
+function getQuestionPrompt(question: Question, runtimeConfig: Phase3RuntimeConfig): string {
+  if (question.questionType === 1) {
+    return runtimeConfig.questionType1Prompt;
   }
-  return q.questionAudioPath;
+
+  return question.questionText;
 }
 
-function getStimulusImage(q: Question): string | null {
-  if (q.questionType === 1 || q.questionType === 2) {
-    const correct = q.answers.find((a) => a.isCorrect);
-    return correct?.imagePath ?? null;
+function getQuestionAudioSource(question: Question, runtimeConfig: Phase3RuntimeConfig): string {
+  if (question.questionType === 1) {
+    return runtimeConfig.questionType1AudioPath;
   }
-  if (q.questionType === 4) return q.imagePath;
+
+  if (question.questionType === 3) {
+    return question.config.sound_path || question.questionAudioPath;
+  }
+
+  return question.questionAudioPath;
+}
+
+function getQuestionStimulusImage(question: Question): string | null {
+  if (question.questionType === 1 || question.questionType === 2) {
+    const correctAnswer = question.answers.find((answer) => answer.isCorrect);
+    return correctAnswer?.imagePath ?? null;
+  }
+
+  if (question.questionType === 4) {
+    return question.imagePath;
+  }
+
   return null;
 }
 
-function isTimelineConfig(c: SceneConfigTimeline | SceneConfigSingle): c is SceneConfigTimeline {
-  return Array.isArray((c as any)?.pictures);
-}
-
-function applySceneEvent(current: string[], path: string, type: DisplayType): string[] {
-  switch (type) {
+function applySceneDisplayEvent(currentImages: string[], imagePath: string, displayType: DisplayType): string[] {
+  switch (displayType) {
     case "insert":
-      return [path];
+      return [imagePath];
     case "add":
-      return current.includes(path) ? current : [...current, path];
+      return currentImages.includes(imagePath) ? currentImages : [...currentImages, imagePath];
     case "remove":
-      return current.filter((x) => x !== path);
+      return currentImages.filter((currentPath) => currentPath !== imagePath);
     case "remove_last_and_add": {
-      const next = current.slice(0, Math.max(0, current.length - 1));
-      next.push(path);
+      const next = currentImages.slice(0, Math.max(0, currentImages.length - 1));
+      next.push(imagePath);
       return next;
     }
     case "remove_all_and_add":
-      return [path];
+      return [imagePath];
     default:
-      return current;
+      return currentImages;
   }
 }
 
-function computeSceneImages(config: SceneConfigTimeline | SceneConfigSingle, currentTime: number): string[] {
-  if (!isTimelineConfig(config)) return [config.picture_path];
-
-  const events = [...config.pictures]
-    .map((p) => ({ path: p.path, t: parseTimeToSeconds(p.display_time), type: p.display_type }))
-    .sort((a, b) => a.t - b.t);
-
-  let imgs: string[] = [];
-  for (const e of events) {
-    if (e.t > currentTime + 0.01) break;
-    imgs = applySceneEvent(imgs, e.path, e.type);
+function getSceneImagesAtTime(config: SceneConfigTimeline | SceneConfigSingle, currentTimeSeconds: number, timeEpsilonSeconds: number): string[] {
+  if (!isTimelineSceneConfig(config)) {
+    return [config.picture_path];
   }
-  return imgs;
+
+  const timeline = [...config.pictures]
+    .map((item) => ({
+      imagePath: item.path,
+      displayType: item.display_type,
+      timeSeconds: parseTimeToSeconds(item.display_time),
+    }))
+    .sort((left, right) => left.timeSeconds - right.timeSeconds);
+
+  let activeImages: string[] = [];
+
+  for (const event of timeline) {
+    if (event.timeSeconds > currentTimeSeconds + timeEpsilonSeconds) {
+      break;
+    }
+
+    activeImages = applySceneDisplayEvent(activeImages, event.imagePath, event.displayType);
+  }
+
+  return activeImages;
 }
 
-function useBrowserSpeechRecognition(lang: string) {
-  const [supported, setSupported] = useState(false);
-  const [listening, setListening] = useState(false);
-  const [interim, setInterim] = useState("");
-  const [finalText, setFinalText] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const recognitionRef = useRef<any>(null);
+function readPhase3LocalState(scopeKey: string): { answeredIds: Set<number>; incorrectIds: number[] } {
+  const answeredRaw = localStorage.getItem(buildStorageKey(scopeKey, PHASE3_LOCAL_STORAGE_KEYS.answered));
+  const incorrectRaw = localStorage.getItem(buildStorageKey(scopeKey, PHASE3_LOCAL_STORAGE_KEYS.incorrect));
 
-  useEffect(() => {
-    const w = window as any;
-    const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
-    if (!SR) {
-      setSupported(false);
-      return;
-    }
-    setSupported(true);
+  return {
+    answeredIds: answeredRaw ? new Set<number>(JSON.parse(answeredRaw)) : new Set<number>(),
+    incorrectIds: incorrectRaw ? (JSON.parse(incorrectRaw) as number[]) : [],
+  };
+}
 
-    const r = new SR();
-    r.continuous = true;
-    r.interimResults = true;
-    r.lang = lang;
+function persistPhase3LocalUiState(scopeKey: string, answeredIds: Set<number>, incorrectQuestions: Question[]): void {
+  localStorage.setItem(buildStorageKey(scopeKey, PHASE3_LOCAL_STORAGE_KEYS.answered), JSON.stringify(Array.from(answeredIds)));
+  localStorage.setItem(
+    buildStorageKey(scopeKey, PHASE3_LOCAL_STORAGE_KEYS.incorrect),
+    JSON.stringify(incorrectQuestions.map((question) => question.questionId)),
+  );
+}
 
-    r.onresult = (evt: any) => {
-      let interimAccum = "";
-      let finalAccum = "";
-      for (let i = evt.resultIndex; i < evt.results.length; i++) {
-        const res = evt.results[i];
-        const txt = res?.[0]?.transcript ?? "";
-        if (res.isFinal) finalAccum += txt + " ";
-        else interimAccum += txt + " ";
-      }
-      if (interimAccum) setInterim(interimAccum.trim());
-      if (finalAccum) {
-        setFinalText((prev) => (prev ? prev + " " : "") + finalAccum.trim());
-        setInterim("");
-      }
-    };
+function persistPhase3LocalAnswer(scopeKey: string, payload: SavePayload): void {
+  const answersKey = buildStorageKey(scopeKey, PHASE3_LOCAL_STORAGE_KEYS.answersPayload);
+  const previous = localStorage.getItem(answersKey);
+  const storedAnswers = previous ? JSON.parse(previous) : {};
 
-    r.onerror = (e: any) => {
-      console.error("[Phase3] chyba rozpoznávania reči", e);
-      const err = String(e?.error ?? e?.message ?? "").trim();
-      setError(err || "speech_recognition_error");
-      setListening(false);
-    };
-    r.onend = () => setListening(false);
-
-    recognitionRef.current = r;
-  }, [lang]);
-
-  const start = () => {
-    if (!recognitionRef.current) return;
-    setFinalText("");
-    setInterim("");
-    setError(null);
-    setListening(true);
-    try {
-      recognitionRef.current.start();
-    } catch (e: any) {
-      const msg = String(e?.message ?? "").trim();
-      setError(msg || "speech_recognition_start_failed");
-      setListening(false);
-    }
+  storedAnswers[String(payload.question_number)] = {
+    ...payload,
+    saved_at: new Date().toISOString(),
   };
 
-  const stop = () => {
+  localStorage.setItem(answersKey, JSON.stringify(storedAnswers));
+}
+
+/* -------------------------------------------------------------------------------------------------
+ * Hooks
+ * -----------------------------------------------------------------------------------------------*/
+
+function useBrowserSpeechRecognition(language: string) {
+  const [supported, setSupported] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [interimText, setInterimText] = useState("");
+  const [finalText, setFinalText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+
+  useEffect(() => {
+    const browserWindow = window as Window & {
+      SpeechRecognition?: BrowserSpeechRecognitionConstructor;
+      webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
+    };
+
+    const SpeechRecognitionApi = browserWindow.SpeechRecognition || browserWindow.webkitSpeechRecognition;
+    if (!SpeechRecognitionApi) {
+      setSupported(false);
+      recognitionRef.current = null;
+      return;
+    }
+
+    const recognition = new SpeechRecognitionApi();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = language;
+
+    recognition.onresult = (event) => {
+      let nextInterimText = "";
+      let nextFinalText = "";
+
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const transcript = result?.[0]?.transcript ?? "";
+
+        if (result?.isFinal) {
+          nextFinalText += `${transcript} `;
+        } else {
+          nextInterimText += `${transcript} `;
+        }
+      }
+
+      if (nextInterimText) {
+        setInterimText(nextInterimText.trim());
+      }
+
+      if (nextFinalText) {
+        setFinalText((previous) => `${previous ? `${previous} ` : ""}${nextFinalText.trim()}`);
+        setInterimText("");
+      }
+    };
+
+    recognition.onerror = (event) => {
+      const nextError = String(event?.error ?? event?.message ?? "").trim() || "speech_recognition_error";
+      console.error("[Phase3] Speech recognition failed", event);
+      setError(nextError);
+      setListening(false);
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    setSupported(true);
+
+    return () => {
+      try {
+        recognition.stop();
+      } catch {
+        // Nothing to clean up if the recognition instance already stopped.
+      }
+    };
+  }, [language]);
+
+  const startListening = useCallback(() => {
     if (!recognitionRef.current) return;
+
+    setFinalText("");
+    setInterimText("");
+    setError(null);
+    setListening(true);
+
+    try {
+      recognitionRef.current.start();
+    } catch (caughtError) {
+      const nextError = String((caughtError as Error)?.message ?? "").trim() || "speech_recognition_start_failed";
+      setError(nextError);
+      setListening(false);
+    }
+  }, []);
+
+  const stopListening = useCallback(() => {
+    if (!recognitionRef.current) return;
+
     try {
       recognitionRef.current.stop();
     } catch {
-      // ignore
+      // The browser may throw if stop() is called after recognition already ended.
     }
+
     setListening(false);
-  };
+  }, []);
 
-  const reset = () => {
+  const resetTranscript = useCallback(() => {
     setFinalText("");
-    setInterim("");
-  };
+    setInterimText("");
+  }, []);
 
-  return { supported, listening, interim, finalText, error, start, stop, reset };
+  return {
+    error,
+    finalText,
+    interimText,
+    listening,
+    resetTranscript,
+    startListening,
+    stopListening,
+    supported,
+  };
 }
+
+/* -------------------------------------------------------------------------------------------------
+ * Presentational components
+ * -----------------------------------------------------------------------------------------------*/
 
 function LoadingImageFill({
   src,
   alt,
   sizes,
+  fadeDurationMs,
   style,
   priority,
 }: {
   src: string;
   alt: string;
   sizes: string;
+  fadeDurationMs: number;
   style?: React.CSSProperties;
   priority?: boolean;
 }) {
@@ -295,400 +510,457 @@ function LoadingImageFill({
         style={{
           ...(style ?? {}),
           opacity: loaded ? 1 : 0,
-          transition: "opacity 120ms ease",
+          transition: `opacity ${fadeDurationMs}ms ease`,
         }}
       />
     </>
   );
 }
 
-function SceneFull({ config, audioTime }: { config: SceneConfigTimeline | SceneConfigSingle; audioTime: number }) {
-  const imgs = useMemo(() => computeSceneImages(config, audioTime), [config, audioTime]);
-  const n = imgs.length;
+function ScenePreview({
+  audioTimeSeconds,
+  config,
+  runtimeConfig,
+}: {
+  audioTimeSeconds: number;
+  config: SceneConfigTimeline | SceneConfigSingle;
+  runtimeConfig: Phase3RuntimeConfig;
+}) {
+  const activeImages = useMemo(
+    () => getSceneImagesAtTime(config, audioTimeSeconds, runtimeConfig.sceneTimeEpsilonSeconds),
+    [audioTimeSeconds, config, runtimeConfig.sceneTimeEpsilonSeconds],
+  );
 
-  if (n <= 1) {
+  if (activeImages.length <= 1) {
     return (
       <div className="w-100 h-100" style={{ position: "relative" }}>
-        {imgs[0] ? (
-          <LoadingImageFill src={imgs[0]} alt="" sizes="100vw" style={{ objectFit: "contain" }} priority />
+        {activeImages[0] ? (
+          <LoadingImageFill
+            src={activeImages[0]}
+            alt=""
+            sizes="100vw"
+            fadeDurationMs={runtimeConfig.imageFadeDurationMs}
+            style={{ objectFit: "contain" }}
+            priority
+          />
         ) : (
-          <div className="w-100 h-100 d-flex align-items-center justify-content-center text-muted">Scéna je pripravená</div>
+          <div className="w-100 h-100 d-flex align-items-center justify-content-center text-muted">{runtimeConfig.sceneEmptyStateText}</div>
         )}
       </div>
     );
   }
 
+  const isTwoItemLayout = activeImages.length === 2;
+
   return (
     <div className="w-100 h-100 d-flex flex-wrap align-items-center justify-content-center" style={{ gap: 10, padding: 10 }}>
-      {imgs.map((src, i) => (
+      {activeImages.map((imagePath, index) => (
         <div
-          key={`${src}-${i}`}
+          key={`${imagePath}-${index}`}
           style={{
             position: "relative",
-            flex: n === 2 ? "0 0 48%" : "0 0 32%",
-            height: n === 2 ? "92%" : "48%",
+            flex: isTwoItemLayout ? "0 0 48%" : "0 0 32%",
+            height: isTwoItemLayout ? "92%" : "48%",
             minHeight: 140,
           }}
         >
-          <LoadingImageFill src={src} alt="" sizes={n === 2 ? "48vw" : "32vw"} style={{ objectFit: "contain" }} />
+          <LoadingImageFill
+            src={imagePath}
+            alt=""
+            sizes={isTwoItemLayout ? "48vw" : "32vw"}
+            fadeDurationMs={runtimeConfig.imageFadeDurationMs}
+            style={{ objectFit: "contain" }}
+          />
         </div>
       ))}
     </div>
   );
 }
 
-function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessionId, answersPath, debug = false, onComplete }: Props) {
-  const useLocal = storageType === "local_storage";
-  const useDb = storageType === "database";
+/* -------------------------------------------------------------------------------------------------
+ * Component
+ * -----------------------------------------------------------------------------------------------*/
+
+function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessionId, answersPath, debug = false, config, onComplete }: Props) {
+  const runtimeConfig = useMemo(
+    () => ({
+      ...DEFAULT_PHASE3_CONFIG,
+      ...(config ?? {}),
+    }),
+    [config],
+  );
+
+  const useLocalStorage = storageType === "local_storage";
+  const useDatabase = storageType === "database";
+  const localScopeKey = useMemo(() => buildStorageScopeKey(categoryId, questionnaireConfigPath), [categoryId, questionnaireConfigPath]);
 
   const [loading, setLoading] = useState(true);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [order, setOrder] = useState<number[]>([]);
+  const [questionOrder, setQuestionOrder] = useState<number[]>([]);
   const [answeredIds, setAnsweredIds] = useState<Set<number>>(new Set());
-  const [incorrect, setIncorrect] = useState<Question[]>([]);
+  const [incorrectQuestions, setIncorrectQuestions] = useState<PersistedQuestion[]>([]);
   const [saveBusy, setSaveBusy] = useState(false);
-
   const [activeIndex, setActiveIndex] = useState(0);
-  const [phase, setPhase] = useState<"nahravanie" | "kontrola" | "uprava" | "pisanie">("nahravanie");
+  const [uiMode, setUiMode] = useState<Phase3UiMode>("recording");
   const [editableText, setEditableText] = useState("");
+  const [audioTimeSeconds, setAudioTimeSeconds] = useState(0);
+  const [audioPlaying, setAudioPlaying] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [audioTime, setAudioTime] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-
-  const { supported, listening, interim, finalText, error: srError, start, stop, reset } = useBrowserSpeechRecognition("sk-SK");
-
-  const autoStopTimerRef = useRef<number | null>(null);
+  const silenceTimerRef = useRef<number | null>(null);
   const wasListeningRef = useRef(false);
+  const touchStartXRef = useRef<number | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
 
-  const touchStartX = useRef<number | null>(null);
-  const touchStartY = useRef<number | null>(null);
-
-  const scopeKey = useMemo(() => {
-    // only relevant for local storage mode
-    return `phase3:${categoryId}:${questionnaireConfigPath}`;
-  }, [categoryId, questionnaireConfigPath]);
-
-  const uiAnsweredKey = `${scopeKey}:answered`;
-  const uiIncorrectKey = `${scopeKey}:incorrect`;
+  const {
+    error: speechError,
+    finalText,
+    interimText,
+    listening,
+    resetTranscript,
+    startListening,
+    stopListening,
+    supported,
+  } = useBrowserSpeechRecognition(runtimeConfig.speechLanguage);
 
   const orderedQuestions = useMemo(() => {
-    const byId = new Map(questions.map((q) => [q.questionId, q]));
-    return order.map((id) => byId.get(id)).filter(Boolean) as Question[];
-  }, [questions, order]);
+    const questionById = new Map(questions.map((question) => [question.questionId, question]));
+    return questionOrder.map((questionId) => questionById.get(questionId)).filter(Boolean) as Question[];
+  }, [questionOrder, questions]);
 
-  const remaining = useMemo(() => orderedQuestions.filter((q) => !answeredIds.has(q.questionId)), [orderedQuestions, answeredIds]);
-  const activeQ = remaining[activeIndex] ?? null;
+  const remainingQuestions = useMemo(
+    () => orderedQuestions.filter((question) => !answeredIds.has(question.questionId)),
+    [answeredIds, orderedQuestions],
+  );
 
-  const total = orderedQuestions.length;
+  const activeQuestion = remainingQuestions[activeIndex] ?? null;
+  const totalQuestions = orderedQuestions.length;
   const answeredCount = answeredIds.size;
-  const progressPct = total ? Math.round((answeredCount / total) * 100) : 0;
+  const progressPercent = totalQuestions ? Math.round((answeredCount / totalQuestions) * 100) : 0;
+  const liveTranscript = `${finalText}${finalText && interimText ? " " : ""}${interimText}`.trim();
+  const canNavigate = uiMode === "recording" && !saveBusy && !listening;
+  const showEditInput = uiMode === "editing";
+  const showTypingInput = uiMode === "typing";
 
-  const readUiStateLocal = () => {
-    if (!useLocal) return { a: new Set<number>(), i: [] as number[] };
-    const aRaw = localStorage.getItem(uiAnsweredKey);
-    const iRaw = localStorage.getItem(uiIncorrectKey);
-    const a = aRaw ? new Set<number>(JSON.parse(aRaw)) : new Set<number>();
-    const i = iRaw ? (JSON.parse(iRaw) as number[]) : [];
-    return { a, i };
-  };
+  const playAudio = useCallback(async () => {
+    const audioElement = audioRef.current;
+    if (!audioElement) return;
 
-  const persistUiStateLocal = (a: Set<number>, inc: Question[]) => {
-    if (!useLocal) return;
-    localStorage.setItem(uiAnsweredKey, JSON.stringify(Array.from(a)));
-    localStorage.setItem(uiIncorrectKey, JSON.stringify(inc.map((q) => q.questionId)));
-  };
+    try {
+      await audioElement.play();
+    } catch (caughtError) {
+      if (debug) {
+        console.debug("[Phase3] Audio playback was blocked until a user gesture", caughtError);
+      }
+    }
+  }, [debug]);
 
-  useEffect(() => {
-    if (activeIndex >= remaining.length) setActiveIndex(Math.max(0, remaining.length - 1));
-  }, [remaining.length, activeIndex]);
+  const pauseAudio = useCallback(() => {
+    audioRef.current?.pause();
+  }, []);
 
-  // Load JSON + ALWAYS randomize order (no persistence)
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
+  const togglePlayPause = useCallback(async () => {
+    if (audioPlaying) {
+      pauseAudio();
+      return;
+    }
+
+    await playAudio();
+  }, [audioPlaying, pauseAudio, playAudio]);
+
+  const replayAudio = useCallback(async () => {
+    const audioElement = audioRef.current;
+    if (!audioElement) return;
+
+    audioElement.pause();
+    audioElement.currentTime = 0;
+    setAudioTimeSeconds(0);
+    await playAudio();
+  }, [playAudio]);
+
+  const saveResultToDatabase = useCallback(
+    async (payload: SavePayload) => {
+      if (!sessionId) {
+        throw new Error("Chýba sessionId");
+      }
+
+      const saveUrl = (answersPath ?? DEFAULT_ANSWERS_PATH)(sessionId);
+      await axiosInstance.post(saveUrl, payload);
+    },
+    [answersPath, sessionId],
+  );
+
+  const finalizeAnswer = useCallback(
+    async (question: Question, userAnswer: string) => {
+      const normalizedUserAnswer = normalizeTranscript(userAnswer);
+      const acceptedAnswers = (question.acceptedTranscripts ?? []).map(normalizeTranscript);
+      const isCorrect = acceptedAnswers.includes(normalizedUserAnswer);
+      const isBooleanQuestion = question.questionType === 3 || question.questionType === 4;
+      const shouldPersist = isBooleanQuestion || isCorrect;
+
+      const payload: SavePayload | null = shouldPersist
+        ? {
+            category_id: categoryId,
+            question_number: question.questionId,
+            answer_state: isBooleanQuestion ? String(isCorrect) : "1",
+            user_answer: userAnswer || null,
+          }
+        : null;
+
+      setSaveBusy(true);
+
       try {
-        const r = await fetch(questionnaireConfigPath, { cache: "no-store" });
-        const data = (await r.json()) as Question[];
+        if (payload) {
+          if (useLocalStorage) {
+            persistPhase3LocalAnswer(localScopeKey, payload);
+          } else {
+            await saveResultToDatabase(payload);
+          }
+        }
 
-        const valid = Array.isArray(data) ? data.filter((q: any) => typeof q?.questionId === "number" && typeof q?.questionType === "number") : [];
+        const nextAnsweredIds = new Set(answeredIds);
+        nextAnsweredIds.add(question.questionId);
 
-        const computedOrder = shuffleRandom(valid.map((q: any) => q.questionId));
+        let nextIncorrectQuestions = incorrectQuestions;
+        if (!isBooleanQuestion && !isCorrect) {
+          const enrichedQuestion: PersistedQuestion = {
+            ...question,
+            phase3_user_answer: userAnswer,
+          };
 
-        setQuestions(valid as Question[]);
-        setOrder(computedOrder);
+          const existingIndex = nextIncorrectQuestions.findIndex((incorrectQuestion) => incorrectQuestion.questionId === question.questionId);
 
-        if (useLocal) {
-          const { a, i } = readUiStateLocal();
-          const incorrectQs = valid.filter((q: any) => i.includes(q.questionId));
-          setAnsweredIds(a);
-          setIncorrect(incorrectQs as Question[]);
+          if (existingIndex >= 0) {
+            const next = [...nextIncorrectQuestions];
+            next[existingIndex] = enrichedQuestion;
+            nextIncorrectQuestions = next;
+          } else {
+            nextIncorrectQuestions = [...nextIncorrectQuestions, enrichedQuestion];
+          }
+        }
+
+        setAnsweredIds(nextAnsweredIds);
+        setIncorrectQuestions(nextIncorrectQuestions);
+
+        if (useLocalStorage) {
+          persistPhase3LocalUiState(localScopeKey, nextAnsweredIds, nextIncorrectQuestions);
+        }
+
+        const remainingAfterCurrent = remainingQuestions.length - 1;
+        if (remainingAfterCurrent <= 0) {
+          onComplete?.(nextIncorrectQuestions);
+        } else {
+          setActiveIndex((currentIndex) => Math.min(currentIndex, remainingAfterCurrent - 1));
+        }
+      } catch (caughtError) {
+        console.error("[Phase3] Saving the answer failed", caughtError);
+      } finally {
+        setSaveBusy(false);
+      }
+    },
+    [answeredIds, categoryId, incorrectQuestions, localScopeKey, onComplete, remainingQuestions.length, saveResultToDatabase, useLocalStorage],
+  );
+
+  useEffect(() => {
+    const loadQuestions = async () => {
+      setLoading(true);
+
+      try {
+        const response = await fetch(questionnaireConfigPath, { cache: "no-store" });
+        const json = (await response.json()) as Question[];
+        const validQuestions = Array.isArray(json)
+          ? json.filter((question): question is Question => typeof question?.questionId === "number" && typeof question?.questionType === "number")
+          : [];
+
+        setQuestions(validQuestions);
+        setQuestionOrder(shuffleArray(validQuestions.map((question) => question.questionId)));
+
+        if (useLocalStorage) {
+          const localState = readPhase3LocalState(localScopeKey);
+          setAnsweredIds(localState.answeredIds);
+          setIncorrectQuestions(validQuestions.filter((question) => localState.incorrectIds.includes(question.questionId)) as PersistedQuestion[]);
         } else {
           setAnsweredIds(new Set());
-          setIncorrect([]);
+          setIncorrectQuestions([]);
         }
 
         setActiveIndex(0);
-      } catch (e) {
-        console.error("[Phase3] zlyhalo načítanie JSON", e);
+      } catch (caughtError) {
+        console.error("[Phase3] Loading the questionnaire failed", caughtError);
         setQuestions([]);
-        setOrder([]);
+        setQuestionOrder([]);
         setAnsweredIds(new Set());
-        setIncorrect([]);
+        setIncorrectQuestions([]);
         setActiveIndex(0);
       } finally {
         setLoading(false);
       }
     };
 
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [questionnaireConfigPath, categoryId, storageType]);
+    void loadQuestions();
+  }, [localScopeKey, questionnaireConfigPath, useLocalStorage]);
 
-  // DB hydration (NO localStorage usage)
   useEffect(() => {
-    if (!useDb) return;
-    if (!sessionId) return;
-    if (!questions.length) return;
-    if (!order.length) return;
+    if (!useDatabase || !sessionId || !questions.length || !questionOrder.length) {
+      return;
+    }
 
-    (async () => {
-      const url = (answersPath ?? defaultAnswersPath)(sessionId);
-      const res = await axiosInstance.get(url);
-      const raw = res?.data;
-      const rows = Array.isArray(raw) ? raw : Array.isArray(raw?.answers) ? raw.answers : [];
+    const hydrateFromDatabase = async () => {
+      const readUrl = (answersPath ?? DEFAULT_ANSWERS_PATH)(sessionId);
+      const response = await axiosInstance.get(readUrl);
+      const rawData = response?.data;
+      const rows = Array.isArray(rawData) ? rawData : Array.isArray(rawData?.answers) ? rawData.answers : [];
 
-      const nextAnswered = new Set<number>();
-      for (const r of rows) {
-        if (Number(r?.category_id) !== Number(categoryId)) continue;
-        const qn = Number(r?.question_number);
-        if (!Number.isFinite(qn)) continue;
-        nextAnswered.add(qn);
+      const nextAnsweredIds = new Set<number>();
+      for (const row of rows) {
+        if (Number(row?.category_id) !== Number(categoryId)) continue;
+
+        const questionNumber = Number(row?.question_number);
+        if (!Number.isFinite(questionNumber)) continue;
+
+        nextAnsweredIds.add(questionNumber);
       }
 
-      setAnsweredIds(nextAnswered);
-      setIncorrect([]); // cannot reconstruct incorrect Type 1/2 because you intentionally do not save them
+      setAnsweredIds(nextAnsweredIds);
+      setIncorrectQuestions([]);
       setActiveIndex(0);
-    })().catch((e) => console.error("[Phase3] zlyhala hydratácia", e));
-  }, [useDb, sessionId, categoryId, questions.length, order.length, answersPath]);
+    };
+
+    hydrateFromDatabase().catch((caughtError) => {
+      console.error("[Phase3] Database hydration failed", caughtError);
+    });
+  }, [answersPath, categoryId, questionOrder.length, questions.length, sessionId, useDatabase]);
 
   useEffect(() => {
-    if (!activeQ) return;
+    if (activeIndex < remainingQuestions.length) return;
+    setActiveIndex(Math.max(0, remainingQuestions.length - 1));
+  }, [activeIndex, remainingQuestions.length]);
 
-    setPhase("nahravanie");
+  useEffect(() => {
+    if (!activeQuestion) return;
+
+    setUiMode("recording");
     setEditableText("");
-    reset();
+    resetTranscript();
+    setAudioTimeSeconds(0);
+    setAudioPlaying(false);
 
-    setAudioTime(0);
-    setIsPlaying(false);
+    const audioElement = audioRef.current;
+    if (!audioElement) return;
 
-    const a = audioRef.current;
-    if (a) {
-      a.pause();
-      a.currentTime = 0;
-    }
-  }, [activeQ?.questionId]); // eslint-disable-line react-hooks/exhaustive-deps
+    audioElement.pause();
+    audioElement.currentTime = 0;
+  }, [activeQuestion, resetTranscript]);
 
   useEffect(() => {
-    const a = audioRef.current;
-    if (!a) return;
+    const audioElement = audioRef.current;
+    if (!audioElement) return;
 
-    const onTime = () => setAudioTime(a.currentTime || 0);
-    const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
-    const onEnded = () => setIsPlaying(false);
+    const handleTimeUpdate = () => {
+      setAudioTimeSeconds(audioElement.currentTime || 0);
+    };
 
-    a.addEventListener("timeupdate", onTime);
-    a.addEventListener("seeked", onTime);
-    a.addEventListener("play", onPlay);
-    a.addEventListener("pause", onPause);
-    a.addEventListener("ended", onEnded);
+    const handlePlay = () => setAudioPlaying(true);
+    const handlePause = () => setAudioPlaying(false);
+    const handleEnded = () => setAudioPlaying(false);
+
+    audioElement.addEventListener("timeupdate", handleTimeUpdate);
+    audioElement.addEventListener("seeked", handleTimeUpdate);
+    audioElement.addEventListener("play", handlePlay);
+    audioElement.addEventListener("pause", handlePause);
+    audioElement.addEventListener("ended", handleEnded);
 
     return () => {
-      a.removeEventListener("timeupdate", onTime);
-      a.removeEventListener("seeked", onTime);
-      a.removeEventListener("play", onPlay);
-      a.removeEventListener("pause", onPause);
-      a.removeEventListener("ended", onEnded);
+      audioElement.removeEventListener("timeupdate", handleTimeUpdate);
+      audioElement.removeEventListener("seeked", handleTimeUpdate);
+      audioElement.removeEventListener("play", handlePlay);
+      audioElement.removeEventListener("pause", handlePause);
+      audioElement.removeEventListener("ended", handleEnded);
     };
-  }, [activeQ?.questionId]);
+  }, [activeQuestion?.questionId]);
 
-  // Auto-stop microphone after a short silence ("user stopped speaking")
   useEffect(() => {
     if (!listening) {
-      if (autoStopTimerRef.current != null) {
-        window.clearTimeout(autoStopTimerRef.current);
-        autoStopTimerRef.current = null;
+      if (silenceTimerRef.current !== null) {
+        window.clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
       }
       return;
     }
 
-    const hasAnyText = !!(interim || finalText).trim();
-    if (!hasAnyText) return;
+    if (!liveTranscript) {
+      return;
+    }
 
-    if (autoStopTimerRef.current != null) window.clearTimeout(autoStopTimerRef.current);
-    autoStopTimerRef.current = window.setTimeout(() => {
-      stop();
-    }, 1300);
+    if (silenceTimerRef.current !== null) {
+      window.clearTimeout(silenceTimerRef.current);
+    }
+
+    silenceTimerRef.current = window.setTimeout(() => {
+      stopListening();
+    }, runtimeConfig.speechSilenceTimeoutMs);
 
     return () => {
-      if (autoStopTimerRef.current != null) {
-        window.clearTimeout(autoStopTimerRef.current);
-        autoStopTimerRef.current = null;
+      if (silenceTimerRef.current !== null) {
+        window.clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
       }
     };
-  }, [listening, interim, finalText, stop]);
+  }, [listening, liveTranscript, runtimeConfig.speechSilenceTimeoutMs, stopListening]);
 
-  // When recognition ends (manual stop, auto-stop, browser end), move to review automatically.
   useEffect(() => {
-    const was = wasListeningRef.current;
+    const wasListening = wasListeningRef.current;
     wasListeningRef.current = listening;
-    if (!was || listening) return;
-    if (phase !== "nahravanie") return;
 
-    const txt = (finalText || interim || "").trim();
-    if (txt) setPhase("kontrola");
-  }, [listening, phase, finalText, interim]);
+    if (!wasListening || listening) return;
+    if (uiMode !== "recording") return;
+    if (!liveTranscript) return;
 
-  const playAudio = async () => {
-    const a = audioRef.current;
-    if (!a) return;
-    try {
-      await a.play();
-    } catch (e) {
-      if (debug) console.debug("[Phase3] prehrávanie zablokované (gesto)", e);
+    setUiMode("review");
+  }, [listening, liveTranscript, uiMode]);
+
+  const goToPreviousQuestion = () => {
+    if (!canNavigate) return;
+    setActiveIndex((currentIndex) => Math.max(0, currentIndex - 1));
+  };
+
+  const goToNextQuestion = () => {
+    if (!canNavigate) return;
+    setActiveIndex((currentIndex) => Math.min(remainingQuestions.length - 1, currentIndex + 1));
+  };
+
+  const handleTouchStart: React.TouchEventHandler<HTMLDivElement> = (event) => {
+    touchStartXRef.current = event.touches[0]?.clientX ?? null;
+    touchStartYRef.current = event.touches[0]?.clientY ?? null;
+  };
+
+  const handleTouchEnd: React.TouchEventHandler<HTMLDivElement> = (event) => {
+    const startX = touchStartXRef.current;
+    const startY = touchStartYRef.current;
+    const endX = event.changedTouches[0]?.clientX ?? null;
+    const endY = event.changedTouches[0]?.clientY ?? null;
+
+    touchStartXRef.current = null;
+    touchStartYRef.current = null;
+
+    if (startX === null || startY === null || endX === null || endY === null) return;
+
+    const deltaX = endX - startX;
+    const deltaY = endY - startY;
+    if (Math.abs(deltaY) > Math.abs(deltaX)) return;
+    if (Math.abs(deltaX) < runtimeConfig.swipeThresholdPx) return;
+
+    if (deltaX > 0) {
+      goToPreviousQuestion();
+    } else {
+      goToNextQuestion();
     }
   };
 
-  const pauseAudio = () => {
-    const a = audioRef.current;
-    if (!a) return;
-    a.pause();
-  };
+  const buttonClassName = (variant: "primary" | "outline-primary" | "outline-secondary" | "success" | "outline-success") =>
+    `btn btn-${variant} rounded-pill px-3`;
 
-  const togglePlayPause = async () => {
-    if (isPlaying) pauseAudio();
-    else await playAudio();
-  };
-
-  const replayAudio = async () => {
-    const a = audioRef.current;
-    if (!a) return;
-    a.pause();
-    a.currentTime = 0;
-    setAudioTime(0);
-    await playAudio();
-  };
-
-  const saveLocalResult = (payload: SavePayload) => {
-    const k = `${scopeKey}:answers_payload`;
-    const raw = localStorage.getItem(k);
-    const obj = raw ? JSON.parse(raw) : {};
-    obj[String(payload.question_number)] = { ...payload, saved_at: new Date().toISOString() };
-    localStorage.setItem(k, JSON.stringify(obj));
-  };
-
-  const saveDbResult = async (payload: SavePayload) => {
-    if (!sessionId) throw new Error("Chýba sessionId");
-    const url = (answersPath ?? defaultAnswersPath)(sessionId);
-    await axiosInstance.post(url, payload);
-  };
-
-  // Type 1/2 incorrect -> NO POST (send nothing)
-  const evaluateAndFinalize = async (q: Question, userText: string) => {
-    const normUser = normalizeTranscript(userText);
-    const accepted = (q.acceptedTranscripts ?? []).map(normalizeTranscript);
-    const isCorrect = accepted.includes(normUser);
-
-    const isBoolQuestion = q.questionType === 3 || q.questionType === 4;
-    const shouldPersistResult = isBoolQuestion || isCorrect;
-
-    const payload: SavePayload | null = shouldPersistResult
-      ? {
-          category_id: categoryId,
-          question_number: q.questionId,
-          answer_state: isBoolQuestion ? String(isCorrect) : "1",
-          user_answer: userText || null,
-        }
-      : null;
-
-    setSaveBusy(true);
-    try {
-      if (payload) {
-        if (useLocal) saveLocalResult(payload);
-        else await saveDbResult(payload);
-      }
-
-      const nextAnswered = new Set(answeredIds);
-      nextAnswered.add(q.questionId);
-
-      let nextIncorrect = incorrect;
-      if (!isBoolQuestion && !isCorrect) {
-        const enriched: any = { ...(q as any), phase3_user_answer: userText };
-        const idx = (incorrect as any[]).findIndex((x: any) => x.questionId === q.questionId);
-        if (idx >= 0) {
-          const copy = [...(incorrect as any[])] as any[];
-          copy[idx] = enriched;
-          nextIncorrect = copy as any;
-        } else {
-          nextIncorrect = [...incorrect, enriched as any];
-        }
-      }
-
-      setAnsweredIds(nextAnswered);
-      setIncorrect(nextIncorrect);
-
-      if (useLocal) persistUiStateLocal(nextAnswered, nextIncorrect);
-
-      const nextRemainingCount = remaining.length - 1;
-      if (nextRemainingCount <= 0) onComplete?.(nextIncorrect);
-      else setActiveIndex((i) => Math.min(i, nextRemainingCount - 1));
-    } catch (e) {
-      console.error("[Phase3] zlyhalo ukladanie", e);
-    } finally {
-      setSaveBusy(false);
-    }
-  };
-
-  const canNavigate = phase === "nahravanie" && !saveBusy && !listening;
-
-  const goPrev = () => {
-    if (!canNavigate) return;
-    setActiveIndex((i) => Math.max(0, i - 1));
-  };
-
-  const goNext = () => {
-    if (!canNavigate) return;
-    setActiveIndex((i) => Math.min(remaining.length - 1, i + 1));
-  };
-
-  const onTouchStart: React.TouchEventHandler<HTMLDivElement> = (e) => {
-    touchStartX.current = e.touches[0]?.clientX ?? null;
-    touchStartY.current = e.touches[0]?.clientY ?? null;
-  };
-
-  const onTouchEnd: React.TouchEventHandler<HTMLDivElement> = (e) => {
-    const sx = touchStartX.current;
-    const sy = touchStartY.current;
-    const ex = e.changedTouches[0]?.clientX ?? null;
-    const ey = e.changedTouches[0]?.clientY ?? null;
-
-    touchStartX.current = null;
-    touchStartY.current = null;
-
-    if (sx == null || ex == null || sy == null || ey == null) return;
-
-    const dx = ex - sx;
-    const dy = ey - sy;
-
-    if (Math.abs(dy) > Math.abs(dx)) return;
-    if (Math.abs(dx) < 55) return;
-
-    if (dx > 0) goPrev();
-    else goNext();
-  };
-
-  if (useDb && !sessionId) {
+  if (useDatabase && !sessionId) {
     return (
       <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white p-3 text-center">
         <div>
@@ -709,7 +981,7 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
     );
   }
 
-  if (!total) {
+  if (!totalQuestions) {
     return (
       <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white p-3 text-center">
         <div>
@@ -722,28 +994,21 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
     );
   }
 
-  if (!activeQ) {
+  if (!activeQuestion) {
     return (
       <div className="position-fixed top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-white p-3 text-center">
         <div className="fw-semibold" style={{ fontSize: "1.25rem" }}>
           Dokončené
         </div>
-        <div className="text-muted small">Nesprávne pre ďalšiu fázu: {incorrect.length}</div>
+        <div className="text-muted small">Nesprávne pre ďalšiu fázu: {incorrectQuestions.length}</div>
       </div>
     );
   }
 
-  const promptText = getPromptText(activeQ);
-  const audioSrc = getAudioSrc(activeQ);
-  const stimulusImage = getStimulusImage(activeQ);
-  const liveText = (finalText || interim || "").trim();
-
-  const showEditInput = phase === "uprava";
-  const showManualInput = phase === "pisanie";
-  const isScene = activeQ.questionType === 3;
-
-  const btn = (variant: "primary" | "outline-primary" | "outline-secondary" | "success" | "outline-success") =>
-    `btn btn-${variant} rounded-pill px-3`;
+  const promptText = getQuestionPrompt(activeQuestion, runtimeConfig);
+  const audioSource = getQuestionAudioSource(activeQuestion, runtimeConfig);
+  const stimulusImagePath = getQuestionStimulusImage(activeQuestion);
+  const isSceneQuestion = activeQuestion.questionType === 3;
 
   return (
     <div className="position-fixed top-0 start-0 w-100 h-100 bg-white" style={{ overflow: "hidden" }}>
@@ -753,26 +1018,26 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
             <div
               className="progress-bar"
               role="progressbar"
-              style={{ width: `${progressPct}%` }}
-              aria-valuenow={progressPct}
+              style={{ width: `${progressPercent}%` }}
+              aria-valuenow={progressPercent}
               aria-valuemin={0}
               aria-valuemax={100}
             />
           </div>
           <div className="small text-muted" style={{ minWidth: 72, textAlign: "right" }}>
-            {answeredCount}/{total}
+            {answeredCount}/{totalQuestions}
           </div>
         </div>
       </div>
 
-      <audio ref={audioRef} src={audioSrc} preload="auto" style={{ display: "none" }} />
+      <audio ref={audioRef} src={audioSource} preload="auto" style={{ display: "none" }} />
 
       <div
         className="w-100 h-100"
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
         style={{
-          paddingBottom: `calc(env(safe-area-inset-bottom) + 34px)`,
+          paddingBottom: "calc(env(safe-area-inset-bottom) + 34px)",
           display: "flex",
           flexDirection: "column",
         }}
@@ -785,12 +1050,12 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
               </div>
 
               <div className="d-flex gap-2 justify-content-center" style={{ flex: "0 0 auto" }}>
-                <button type="button" className={btn("outline-primary")} onClick={() => void togglePlayPause()} disabled={saveBusy}>
-                  <i className={`bi ${isPlaying ? "bi-pause-fill" : "bi-play-fill"} me-2`} />
-                  {isPlaying ? "Pauza" : "Prehrať"}
+                <button type="button" className={buttonClassName("outline-primary")} onClick={() => void togglePlayPause()} disabled={saveBusy}>
+                  <i className={`bi ${audioPlaying ? "bi-pause-fill" : "bi-play-fill"} me-2`} />
+                  {audioPlaying ? "Pauza" : "Prehrať"}
                 </button>
 
-                <button type="button" className={btn("outline-secondary")} onClick={() => void replayAudio()} disabled={saveBusy}>
+                <button type="button" className={buttonClassName("outline-secondary")} onClick={() => void replayAudio()} disabled={saveBusy}>
                   <i className="bi bi-arrow-counterclockwise me-2" />
                   Znova
                 </button>
@@ -803,7 +1068,7 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
           <button
             type="button"
             aria-label="Predchádzajúca"
-            onClick={goPrev}
+            onClick={goToPreviousQuestion}
             disabled={!canNavigate || activeIndex <= 0}
             className="btn btn-light"
             style={{
@@ -827,8 +1092,8 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
           <button
             type="button"
             aria-label="Nasledujúca"
-            onClick={goNext}
-            disabled={!canNavigate || activeIndex >= remaining.length - 1}
+            onClick={goToNextQuestion}
+            disabled={!canNavigate || activeIndex >= remainingQuestions.length - 1}
             className="btn btn-light"
             style={{
               position: "absolute",
@@ -841,7 +1106,7 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              opacity: activeIndex >= remaining.length - 1 || !canNavigate ? 0.35 : 0.9,
+              opacity: activeIndex >= remainingQuestions.length - 1 || !canNavigate ? 0.35 : 0.9,
               zIndex: 20,
             }}
           >
@@ -849,16 +1114,17 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
           </button>
 
           <div className="w-100 h-100 d-flex align-items-center justify-content-center" style={{ maxWidth: 1440, margin: "0 auto" }}>
-            {isScene ? (
+            {isSceneQuestion ? (
               <div className="w-100 h-100">
-                <SceneFull config={(activeQ as any).config} audioTime={audioTime} />
+                <ScenePreview config={activeQuestion.config} audioTimeSeconds={audioTimeSeconds} runtimeConfig={runtimeConfig} />
               </div>
-            ) : stimulusImage ? (
+            ) : stimulusImagePath ? (
               <div style={{ position: "relative", width: "min(86vw, 1100px)", height: "52dvh", maxHeight: "52dvh" }}>
                 <LoadingImageFill
-                  src={stimulusImage}
+                  src={stimulusImagePath}
                   alt=""
                   sizes="(max-width: 1100px) 86vw, 1100px"
+                  fadeDurationMs={runtimeConfig.imageFadeDurationMs}
                   style={{ objectFit: "contain", borderRadius: 12 }}
                   priority
                 />
@@ -871,46 +1137,33 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
 
         <div className="w-100 px-2" style={{ paddingTop: 10, paddingBottom: 10 }}>
           <div className="d-flex flex-column align-items-center" style={{ maxWidth: 1280, margin: "0 auto", gap: 10 }}>
-            {!showEditInput && !showManualInput ? (
+            {!showEditInput && !showTypingInput ? (
               <div className="w-100 text-center" style={{ minHeight: 40 }}>
                 <div className="text-muted" style={{ fontSize: 16, marginBottom: 2 }}>
                   Prepis
                 </div>
                 <div style={{ fontSize: "clamp(1.35rem, 1.9vw, 2.1rem)", lineHeight: 1.1, wordBreak: "break-word" }}>
-                  {liveText ? (
+                  {liveTranscript ? (
                     <>
                       <span className="fw-semibold">{finalText}</span>
-                      {interim ? <span className="text-muted"> {interim}</span> : null}
+                      {interimText ? <span className="text-muted"> {interimText}</span> : null}
                     </>
                   ) : (
                     <span className="text-muted">—</span>
                   )}
                 </div>
               </div>
-            ) : showEditInput ? (
-              <div className="w-100 text-center" style={{ maxWidth: 760 }}>
-                <div className="text-muted" style={{ fontSize: 16, marginBottom: 6 }}>
-                  Upravte prepis
-                </div>
-                <input
-                  className="form-control form-control-lg"
-                  value={editableText}
-                  onChange={(e) => setEditableText(e.target.value)}
-                  disabled={saveBusy}
-                  placeholder="Upravte rozpoznaný text"
-                />
-              </div>
             ) : (
               <div className="w-100 text-center" style={{ maxWidth: 760 }}>
                 <div className="text-muted" style={{ fontSize: 16, marginBottom: 6 }}>
-                  Napíšte odpoveď
+                  {showEditInput ? "Upravte prepis" : "Napíšte odpoveď"}
                 </div>
                 <input
                   className="form-control form-control-lg"
                   value={editableText}
-                  onChange={(e) => setEditableText(e.target.value)}
+                  onChange={(event) => setEditableText(event.target.value)}
                   disabled={saveBusy}
-                  placeholder="Napíšte odpoveď"
+                  placeholder={showEditInput ? "Upravte rozpoznaný text" : "Napíšte odpoveď"}
                 />
               </div>
             )}
@@ -918,11 +1171,11 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
             <div className="d-flex flex-wrap justify-content-center gap-2">
               <button
                 type="button"
-                className={btn("success")}
-                disabled={!supported || !!srError || listening || phase !== "nahravanie" || saveBusy}
+                className={buttonClassName("success")}
+                disabled={!supported || Boolean(speechError) || listening || uiMode !== "recording" || saveBusy}
                 onClick={() => {
                   pauseAudio();
-                  start();
+                  startListening();
                 }}
               >
                 <i className="bi bi-mic-fill me-2" />
@@ -931,11 +1184,11 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
 
               <button
                 type="button"
-                className={btn("outline-success")}
-                disabled={!supported || !!srError || !listening || phase !== "nahravanie" || saveBusy}
+                className={buttonClassName("outline-success")}
+                disabled={!supported || Boolean(speechError) || !listening || uiMode !== "recording" || saveBusy}
                 onClick={() => {
-                  stop();
-                  setPhase("kontrola");
+                  stopListening();
+                  setUiMode("review");
                 }}
               >
                 <i className="bi bi-stop-fill me-2" />
@@ -944,12 +1197,12 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
 
               <button
                 type="button"
-                className={btn("outline-primary")}
+                className={buttonClassName("outline-primary")}
                 disabled={saveBusy || listening}
                 onClick={() => {
-                  stop();
-                  setEditableText(liveText);
-                  setPhase("pisanie");
+                  stopListening();
+                  setEditableText(liveTranscript);
+                  setUiMode("typing");
                 }}
               >
                 <i className="bi bi-keyboard me-2" />
@@ -958,11 +1211,11 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
 
               <button
                 type="button"
-                className={btn("outline-secondary")}
-                disabled={phase !== "nahravanie" || saveBusy}
+                className={buttonClassName("outline-secondary")}
+                disabled={uiMode !== "recording" || saveBusy}
                 onClick={() => {
-                  stop();
-                  reset();
+                  stopListening();
+                  resetTranscript();
                 }}
               >
                 <i className="bi bi-x-circle me-2" />
@@ -972,15 +1225,15 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
 
             {!supported && <div className="text-danger small text-center">Tento prehliadač nepodporuje rozpoznávanie reči. Použite písanie.</div>}
 
-            {!!srError && <div className="text-danger small text-center">Rozpoznávanie reči nie je dostupné ({srError}). Použite písanie.</div>}
+            {speechError && <div className="text-danger small text-center">Rozpoznávanie reči nie je dostupné ({speechError}). Použite písanie.</div>}
 
-            {phase === "kontrola" && (
+            {uiMode === "review" && (
               <div className="d-flex flex-wrap justify-content-center gap-2">
                 <button
                   type="button"
-                  className={btn("primary")}
-                  disabled={saveBusy || !liveText}
-                  onClick={() => void evaluateAndFinalize(activeQ, liveText)}
+                  className={buttonClassName("primary")}
+                  disabled={saveBusy || !liveTranscript}
+                  onClick={() => void finalizeAnswer(activeQuestion, liveTranscript)}
                 >
                   <i className="bi bi-check-lg me-2" />
                   Prepis je správny
@@ -988,11 +1241,11 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
 
                 <button
                   type="button"
-                  className={btn("outline-primary")}
-                  disabled={saveBusy || !liveText}
+                  className={buttonClassName("outline-primary")}
+                  disabled={saveBusy || !liveTranscript}
                   onClick={() => {
-                    setEditableText(liveText);
-                    setPhase("uprava");
+                    setEditableText(liveTranscript);
+                    setUiMode("editing");
                   }}
                 >
                   <i className="bi bi-pencil me-2" />
@@ -1001,12 +1254,12 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
 
                 <button
                   type="button"
-                  className={btn("outline-secondary")}
+                  className={buttonClassName("outline-secondary")}
                   disabled={saveBusy}
                   onClick={() => {
-                    setPhase("nahravanie");
-                    stop();
-                    reset();
+                    setUiMode("recording");
+                    stopListening();
+                    resetTranscript();
                   }}
                 >
                   <i className="bi bi-arrow-repeat me-2" />
@@ -1015,16 +1268,16 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
               </div>
             )}
 
-            {phase === "pisanie" && (
+            {uiMode === "typing" && (
               <div className="d-flex flex-wrap justify-content-center gap-2">
                 <button
                   type="button"
-                  className={btn("outline-secondary")}
+                  className={buttonClassName("outline-secondary")}
                   disabled={saveBusy}
                   onClick={() => {
-                    setPhase("nahravanie");
-                    stop();
-                    reset();
+                    setUiMode("recording");
+                    stopListening();
+                    resetTranscript();
                     setEditableText("");
                   }}
                 >
@@ -1034,9 +1287,9 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
 
                 <button
                   type="button"
-                  className={btn("primary")}
+                  className={buttonClassName("primary")}
                   disabled={saveBusy || !editableText.trim()}
-                  onClick={() => void evaluateAndFinalize(activeQ, editableText.trim())}
+                  onClick={() => void finalizeAnswer(activeQuestion, editableText.trim())}
                 >
                   <i className="bi bi-save2 me-2" />
                   {saveBusy ? "Ukladám…" : "Uložiť"}
@@ -1044,16 +1297,16 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
               </div>
             )}
 
-            {phase === "uprava" && (
+            {uiMode === "editing" && (
               <div className="d-flex flex-wrap justify-content-center gap-2">
                 <button
                   type="button"
-                  className={btn("outline-secondary")}
+                  className={buttonClassName("outline-secondary")}
                   disabled={saveBusy}
                   onClick={() => {
-                    setPhase("nahravanie");
-                    stop();
-                    reset();
+                    setUiMode("recording");
+                    stopListening();
+                    resetTranscript();
                     setEditableText("");
                   }}
                 >
@@ -1063,9 +1316,9 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
 
                 <button
                   type="button"
-                  className={btn("primary")}
+                  className={buttonClassName("primary")}
                   disabled={saveBusy || !editableText.trim()}
-                  onClick={() => void evaluateAndFinalize(activeQ, editableText.trim())}
+                  onClick={() => void finalizeAnswer(activeQuestion, editableText.trim())}
                 >
                   <i className="bi bi-save2 me-2" />
                   {saveBusy ? "Ukladám…" : "Uložiť"}
@@ -1074,7 +1327,8 @@ function Phase3Testing({ questionnaireConfigPath, categoryId, storageType, sessi
             )}
 
             <div className="small text-muted">
-              Otázka {Math.min(activeIndex + 1, remaining.length)}/{remaining.length} • Nesprávne pre ďalšiu fázu: {incorrect.length}
+              Otázka {Math.min(activeIndex + 1, remainingQuestions.length)}/{remainingQuestions.length} • Nesprávne pre ďalšiu fázu:{" "}
+              {incorrectQuestions.length}
             </div>
           </div>
         </div>

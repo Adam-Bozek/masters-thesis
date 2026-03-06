@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import withAuth from "@/utilities/WithAuth";
+import { sceneBuilderRuntimeConfig as sharedSceneBuilderRuntimeConfig } from "./componentRuntimeConfigs";
 
 export type DisplayType = "insert" | "add" | "remove_last_and_add" | "remove_all_and_add";
 
 export type PictureEvent = {
   path: string;
-  display_time: string | number; // "0:05" or 5
+  display_time: string | number;
   display_type: DisplayType;
 };
 
@@ -16,294 +17,450 @@ export type SceneConfig = {
   pictures: PictureEvent[];
 };
 
-type NormalizedEvent = { path: string; t: number; type: DisplayType };
+export type SceneBuilderRuntimeConfig = {
+  autoplayPromptText: string;
+  playButtonLabel: string;
+  pauseButtonLabel: string;
+  restartButtonLabel: string;
+  skipButtonLabel: string;
+  bodyOverflowMode: string;
+  currentTimeUpdateThresholdSeconds: number;
+  eventTriggerEpsilonSeconds: number;
+  progressBarHeightPx: number;
+  singleImageMaxHeight: string;
+  dualImageMaxHeight: string;
+  multiImageMaxHeight: string;
+  singleImageMaxWidth: string;
+  dualImageMaxWidth: string;
+  multiImageMaxWidth: string;
+};
+
+type NormalizedPictureEvent = {
+  path: string;
+  timeSeconds: number;
+  displayType: DisplayType;
+};
 
 export type SceneBuilderProps = {
   config: SceneConfig;
   onComplete: () => void;
   onSkip: () => void;
   debug?: boolean;
+  runtimeConfig?: Partial<SceneBuilderRuntimeConfig>;
 };
 
-function parseTimeToSeconds(v: string | number): number {
-  if (typeof v === "number" && Number.isFinite(v)) return Math.max(0, v);
-  const s = String(v).trim();
-  if (!s) return 0;
+const DEFAULT_RUNTIME_CONFIG: SceneBuilderRuntimeConfig = sharedSceneBuilderRuntimeConfig;
 
-  const parts = s.split(":").map((p) => p.trim());
-  if (parts.some((p) => p === "" || !/^\d+$/.test(p))) return 0;
-  const nums = parts.map(Number);
+function parseTimeToSeconds(value: string | number): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(0, value);
+  }
 
-  if (nums.length === 1) return Math.max(0, nums[0]);
-  if (nums.length === 2) return Math.max(0, nums[0] * 60 + nums[1]);
+  const normalizedValue = String(value).trim();
+  if (!normalizedValue) {
+    return 0;
+  }
 
-  const [h, m, sec] = nums.slice(-3);
-  return Math.max(0, h * 3600 + m * 60 + sec);
+  const parts = normalizedValue.split(":").map((part) => part.trim());
+  if (parts.some((part) => part === "" || !/^\d+$/.test(part))) {
+    return 0;
+  }
+
+  const numericParts = parts.map(Number);
+
+  if (numericParts.length === 1) {
+    return Math.max(0, numericParts[0]);
+  }
+
+  if (numericParts.length === 2) {
+    return Math.max(0, numericParts[0] * 60 + numericParts[1]);
+  }
+
+  const [hours, minutes, seconds] = numericParts.slice(-3);
+  return Math.max(0, hours * 3600 + minutes * 60 + seconds);
 }
 
-function applyEvent(current: string[], ev: NormalizedEvent): string[] {
-  switch (ev.type) {
+function normalizePictureEvents(pictures: PictureEvent[]): NormalizedPictureEvent[] {
+  return [...pictures]
+    .map((picture) => ({
+      path: picture.path,
+      timeSeconds: parseTimeToSeconds(picture.display_time),
+      displayType: picture.display_type,
+    }))
+    .sort((left, right) => left.timeSeconds - right.timeSeconds);
+}
+
+function applyPictureEvent(currentPaths: string[], event: NormalizedPictureEvent): string[] {
+  switch (event.displayType) {
+    // "insert" is treated as replacing the current scene with a single image,
+    // which matches the original component behavior.
     case "insert":
-      return [ev.path];
+      return [event.path];
     case "add":
-      return [...current, ev.path];
+      return [...currentPaths, event.path];
     case "remove_last_and_add": {
-      const next = current.slice(0, Math.max(0, current.length - 1));
-      next.push(ev.path);
-      return next;
+      const nextPaths = currentPaths.slice(0, Math.max(0, currentPaths.length - 1));
+      nextPaths.push(event.path);
+      return nextPaths;
     }
     case "remove_all_and_add":
-      return [ev.path];
+      return [event.path];
     default:
-      return current;
+      return currentPaths;
   }
 }
 
-function SceneBuilder({ config, onComplete, onSkip, debug = false }: SceneBuilderProps) {
-  const events = useMemo<NormalizedEvent[]>(() => {
-    const normalized = (config.pictures ?? []).map((p) => ({
-      path: p.path,
-      t: parseTimeToSeconds(p.display_time),
-      type: p.display_type,
-    }));
-    normalized.sort((a, b) => a.t - b.t);
-    return normalized;
-  }, [config]);
+function clampPercentage(value: number): number {
+  return Math.min(100, Math.max(0, value));
+}
+
+function getDisplayedImageStyle(displayedImageCount: number, runtimeConfig: SceneBuilderRuntimeConfig): React.CSSProperties {
+  const isSingleImage = displayedImageCount <= 1;
+  const isDualImage = displayedImageCount === 2;
+
+  return {
+    objectFit: "contain",
+    userSelect: "none",
+    pointerEvents: "none",
+    maxHeight: isSingleImage
+      ? runtimeConfig.singleImageMaxHeight
+      : isDualImage
+        ? runtimeConfig.dualImageMaxHeight
+        : runtimeConfig.multiImageMaxHeight,
+    maxWidth: isSingleImage ? runtimeConfig.singleImageMaxWidth : isDualImage ? runtimeConfig.dualImageMaxWidth : runtimeConfig.multiImageMaxWidth,
+  };
+}
+
+function debugLog(debug: boolean, ...args: unknown[]) {
+  if (debug) {
+    console.log("[SceneBuilder]", ...args);
+  }
+}
+
+function preloadUniqueImages(pictures: PictureEvent[]) {
+  const uniquePaths = Array.from(new Set(pictures.map((picture) => picture.path)));
+
+  uniquePaths.forEach((sourcePath) => {
+    const image = new Image();
+    image.src = sourcePath;
+  });
+}
+
+type AutoplayOverlayProps = {
+  isVisible: boolean;
+  buttonLabel: string;
+  onResume: () => void;
+};
+
+function AutoplayOverlay({ isVisible, buttonLabel, onResume }: AutoplayOverlayProps) {
+  if (!isVisible) {
+    return null;
+  }
+
+  return (
+    <button
+      type="button"
+      className="btn btn-primary btn-lg shadow"
+      style={{
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        zIndex: 50,
+      }}
+      onClick={onResume}
+    >
+      <i className="bi bi-play-fill me-2" />
+      {buttonLabel}
+    </button>
+  );
+}
+
+type PlaybackControlsProps = {
+  isPlaying: boolean;
+  playLabel: string;
+  pauseLabel: string;
+  restartLabel: string;
+  skipLabel: string;
+  onPlay: () => void;
+  onPause: () => void;
+  onRestart: () => void;
+  onSkip: () => void;
+};
+
+function PlaybackControls({ isPlaying, playLabel, pauseLabel, restartLabel, skipLabel, onPlay, onPause, onRestart, onSkip }: PlaybackControlsProps) {
+  return (
+    <div className="position-absolute top-0 start-0 end-0 p-3 d-flex justify-content-center" style={{ zIndex: 40 }}>
+      <div className="d-flex gap-2 bg-white rounded-3 shadow-sm border p-2">
+        <button type="button" className="btn btn-primary" onClick={onPlay} disabled={isPlaying} aria-label={playLabel}>
+          <i className="bi bi-play-fill me-2" />
+          {playLabel}
+        </button>
+
+        <button type="button" className="btn btn-outline-primary" onClick={onPause} disabled={!isPlaying} aria-label={pauseLabel}>
+          <i className="bi bi-pause-fill me-2" />
+          {pauseLabel}
+        </button>
+
+        <button type="button" className="btn btn-outline-secondary" onClick={onRestart} aria-label={restartLabel}>
+          <i className="bi bi-arrow-counterclockwise me-2" />
+          {restartLabel}
+        </button>
+
+        <button type="button" className="btn btn-outline-danger" onClick={onSkip} aria-label={skipLabel}>
+          <i className="bi bi-skip-forward-fill me-2" />
+          {skipLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+type PlaybackProgressProps = {
+  progressPercentage: number;
+  heightPx: number;
+};
+
+function PlaybackProgress({ progressPercentage, heightPx }: PlaybackProgressProps) {
+  return (
+    <div className="position-absolute bottom-0 start-0 end-0 p-3" style={{ zIndex: 40 }}>
+      <div className="progress" style={{ height: heightPx }}>
+        <div className="progress-bar" role="progressbar" style={{ width: `${progressPercentage}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function SceneBuilder({ config, onComplete, onSkip, debug = false, runtimeConfig: runtimeConfigOverride }: SceneBuilderProps) {
+  const runtimeConfig = useMemo<SceneBuilderRuntimeConfig>(() => ({ ...DEFAULT_RUNTIME_CONFIG, ...runtimeConfigOverride }), [runtimeConfigOverride]);
+
+  const normalizedEvents = useMemo<NormalizedPictureEvent[]>(() => normalizePictureEvents(config.pictures ?? []), [config.pictures]);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const rafRef = useRef<number | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const displayedImagePathsRef = useRef<string[]>([]);
+  const nextEventIndexRef = useRef(0);
+  const lastReportedTimeRef = useRef(-1);
 
-  const displayedRef = useRef<string[]>([]);
-  const nextEventIndexRef = useRef<number>(0);
-  const lastTimeRef = useRef<number>(-1);
-
-  const [displayed, setDisplayed] = useState<string[]>([]);
+  const [displayedImagePaths, setDisplayedImagePaths] = useState<string[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [needsGesture, setNeedsGesture] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [needsUserGesture, setNeedsUserGesture] = useState(false);
+  const [currentTimeSeconds, setCurrentTimeSeconds] = useState(0);
+  const [durationSeconds, setDurationSeconds] = useState(0);
 
-  const stopRaf = () => {
-    if (rafRef.current != null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
+  const stopAnimationLoop = useCallback(() => {
+    if (animationFrameRef.current != null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
     }
-  };
+  }, []);
 
-  const resetTimeline = () => {
-    displayedRef.current = [];
+  const resetPlaybackTimeline = useCallback(() => {
+    displayedImagePathsRef.current = [];
     nextEventIndexRef.current = 0;
-    lastTimeRef.current = -1;
-    setDisplayed([]);
-    setCurrentTime(0);
-  };
+    lastReportedTimeRef.current = -1;
+    setDisplayedImagePaths([]);
+    setCurrentTimeSeconds(0);
+  }, []);
 
-  const step = () => {
+  const startAnimationLoop = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio) return;
-
-    const t = audio.currentTime || 0;
-
-    if (Math.abs(t - lastTimeRef.current) > 0.05) {
-      lastTimeRef.current = t;
-      setCurrentTime(t);
+    if (!audio) {
+      return;
     }
 
-    let idx = nextEventIndexRef.current;
-    let list = displayedRef.current;
+    stopAnimationLoop();
 
-    while (idx < events.length && events[idx].t <= t + 0.01) {
-      list = applyEvent(list, events[idx]);
-      idx += 1;
-    }
+    const tick = () => {
+      const currentAudio = audioRef.current;
+      if (!currentAudio) {
+        return;
+      }
 
-    if (idx !== nextEventIndexRef.current) {
-      nextEventIndexRef.current = idx;
-      displayedRef.current = list;
-      setDisplayed(list);
-      if (debug) console.log("[SceneBuilder] applied idx", idx, "t", t, "list", list);
-    }
+      const playbackTimeSeconds = currentAudio.currentTime || 0;
 
-    if (!audio.paused && !audio.ended) rafRef.current = requestAnimationFrame(step);
-  };
+      if (Math.abs(playbackTimeSeconds - lastReportedTimeRef.current) > runtimeConfig.currentTimeUpdateThresholdSeconds) {
+        lastReportedTimeRef.current = playbackTimeSeconds;
+        setCurrentTimeSeconds(playbackTimeSeconds);
+      }
 
-  const startRaf = () => {
-    stopRaf();
-    rafRef.current = requestAnimationFrame(step);
-  };
+      let nextEventIndex = nextEventIndexRef.current;
+      let nextDisplayedImages = displayedImagePathsRef.current;
 
-  const tryPlay = async () => {
+      while (
+        nextEventIndex < normalizedEvents.length &&
+        normalizedEvents[nextEventIndex].timeSeconds <= playbackTimeSeconds + runtimeConfig.eventTriggerEpsilonSeconds
+      ) {
+        nextDisplayedImages = applyPictureEvent(nextDisplayedImages, normalizedEvents[nextEventIndex]);
+        nextEventIndex += 1;
+      }
+
+      if (nextEventIndex !== nextEventIndexRef.current) {
+        nextEventIndexRef.current = nextEventIndex;
+        displayedImagePathsRef.current = nextDisplayedImages;
+        setDisplayedImagePaths(nextDisplayedImages);
+        debugLog(debug, "applied events", {
+          nextEventIndex,
+          playbackTimeSeconds,
+          nextDisplayedImages,
+        });
+      }
+
+      if (!currentAudio.paused && !currentAudio.ended) {
+        animationFrameRef.current = requestAnimationFrame(tick);
+      }
+    };
+
+    animationFrameRef.current = requestAnimationFrame(tick);
+  }, [debug, normalizedEvents, runtimeConfig.currentTimeUpdateThresholdSeconds, runtimeConfig.eventTriggerEpsilonSeconds, stopAnimationLoop]);
+
+  const startPlayback = useCallback(async () => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio) {
+      return;
+    }
 
     try {
       await audio.play();
       setIsPlaying(true);
-      setNeedsGesture(false);
-      startRaf();
-      if (debug) console.log("[SceneBuilder] playing");
-    } catch (e) {
+      setNeedsUserGesture(false);
+      startAnimationLoop();
+      debugLog(debug, "playing");
+    } catch (error) {
       setIsPlaying(false);
-      setNeedsGesture(true);
-      if (debug) console.log("[SceneBuilder] autoplay blocked", e);
+      setNeedsUserGesture(true);
+      debugLog(debug, "autoplay blocked", error);
     }
-  };
+  }, [debug, startAnimationLoop]);
 
-  const pause = () => {
+  const pausePlayback = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio) {
+      return;
+    }
+
     audio.pause();
     setIsPlaying(false);
-    stopRaf();
-    if (debug) console.log("[SceneBuilder] paused", audio.currentTime);
-  };
+    stopAnimationLoop();
+    debugLog(debug, "paused", audio.currentTime);
+  }, [debug, stopAnimationLoop]);
 
-  const restart = async () => {
+  const restartPlayback = useCallback(async () => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio) {
+      return;
+    }
 
-    pause();
-    resetTimeline();
+    pausePlayback();
+    resetPlaybackTimeline();
     audio.currentTime = 0;
-    await tryPlay();
-  };
+    await startPlayback();
+  }, [pausePlayback, resetPlaybackTimeline, startPlayback]);
 
-  const skip = () => {
+  const skipPlayback = useCallback(() => {
     const audio = audioRef.current;
     if (audio) {
       audio.pause();
       audio.currentTime = 0;
     }
-    stopRaf();
-    resetTimeline();
+
+    stopAnimationLoop();
+    resetPlaybackTimeline();
     onSkip();
-  };
+  }, [onSkip, resetPlaybackTimeline, stopAnimationLoop]);
 
   useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const previousOverflowMode = document.body.style.overflow;
+    document.body.style.overflow = runtimeConfig.bodyOverflowMode;
+
     return () => {
-      document.body.style.overflow = prev;
+      document.body.style.overflow = previousOverflowMode;
     };
-  }, []);
+  }, [runtimeConfig.bodyOverflowMode]);
 
   useEffect(() => {
-    const unique = Array.from(new Set((config.pictures ?? []).map((p) => p.path)));
-    unique.forEach((src) => {
-      const img = new Image();
-      img.src = src;
-    });
-  }, [config]);
+    preloadUniqueImages(config.pictures ?? []);
+  }, [config.pictures]);
 
   useEffect(() => {
-    stopRaf();
-    resetTimeline();
-    setNeedsGesture(false);
+    stopAnimationLoop();
+    resetPlaybackTimeline();
+    setNeedsUserGesture(false);
     setIsPlaying(false);
-    setDuration(0);
+    setDurationSeconds(0);
 
     const audio = new Audio(config.sound_path);
     audio.preload = "auto";
     audioRef.current = audio;
 
-    const onEnded = () => {
-      stopRaf();
+    const handleEnded = () => {
+      stopAnimationLoop();
       setIsPlaying(false);
-      if (debug) console.log("[SceneBuilder] ended");
+      debugLog(debug, "ended");
       onComplete();
     };
 
-    const onLoaded = () => {
-      setDuration(Number.isFinite(audio.duration) ? audio.duration : 0);
-      if (debug) console.log("[SceneBuilder] duration", audio.duration);
+    const handleLoadedMetadata = () => {
+      const safeDurationSeconds = Number.isFinite(audio.duration) ? audio.duration : 0;
+      setDurationSeconds(safeDurationSeconds);
+      debugLog(debug, "duration", safeDurationSeconds);
     };
 
-    audio.addEventListener("ended", onEnded);
-    audio.addEventListener("loadedmetadata", onLoaded);
+    audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
 
-    void tryPlay();
+    void startPlayback();
 
     return () => {
-      audio.removeEventListener("ended", onEnded);
-      audio.removeEventListener("loadedmetadata", onLoaded);
+      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
       audio.pause();
       audioRef.current = null;
-      stopRaf();
+      stopAnimationLoop();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.sound_path, events, onComplete, debug]);
+  }, [config.sound_path, debug, onComplete, resetPlaybackTimeline, startPlayback, stopAnimationLoop]);
 
-  const progressPct = duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
+  const displayedImageStyle = useMemo(
+    () => getDisplayedImageStyle(displayedImagePaths.length, runtimeConfig),
+    [displayedImagePaths.length, runtimeConfig],
+  );
 
-  const count = displayed.length;
-  const imgStyle: React.CSSProperties = {
-    objectFit: "contain",
-    userSelect: "none",
-    pointerEvents: "none",
-    maxHeight: count <= 1 ? "90vh" : count === 2 ? "80vh" : "70vh",
-    maxWidth: count <= 1 ? "95vw" : count === 2 ? "48vw" : "32vw",
-  };
+  const progressPercentage = durationSeconds > 0 ? clampPercentage((currentTimeSeconds / durationSeconds) * 100) : 0;
 
   return (
     <div className="position-fixed top-0 start-0 w-100 h-100 overflow-hidden bg-white" style={{ touchAction: "manipulation" }}>
       <div className="position-relative w-100 h-100 d-flex align-items-center justify-content-center">
-        {/* SIDE-BY-SIDE layout */}
         <div className="w-100 h-100 d-flex flex-wrap align-items-center justify-content-center gap-3 p-3">
-          {displayed.map((src, i) => (
-            <img key={`${src}-${i}`} src={src} alt="" style={imgStyle} />
+          {displayedImagePaths.map((sourcePath, index) => (
+            <img key={`${sourcePath}-${index}`} src={sourcePath} alt="" style={displayedImageStyle} />
           ))}
         </div>
 
-        {/* Autoplay blocked overlay */}
-        {needsGesture && (
-          <button
-            type="button"
-            className="btn btn-primary btn-lg shadow"
-            style={{
-              position: "absolute",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              zIndex: 50,
-            }}
-            onClick={() => void tryPlay()}
-          >
-            <i className="bi bi-play-fill me-2" />
-            Ťuknite pre spustenie
-          </button>
-        )}
+        <AutoplayOverlay
+          isVisible={needsUserGesture}
+          buttonLabel={runtimeConfig.autoplayPromptText}
+          onResume={() => {
+            void startPlayback();
+          }}
+        />
 
-        {/* Clean control bar */}
-        <div className="position-absolute top-0 start-0 end-0 p-3 d-flex justify-content-center" style={{ zIndex: 40 }}>
-          <div className="d-flex gap-2 bg-white rounded-3 shadow-sm border p-2">
-            <button type="button" className="btn btn-primary" onClick={() => void tryPlay()} disabled={isPlaying} aria-label="Prehrať">
-              <i className="bi bi-play-fill me-2" />
-              Prehrať
-            </button>
+        <PlaybackControls
+          isPlaying={isPlaying}
+          playLabel={runtimeConfig.playButtonLabel}
+          pauseLabel={runtimeConfig.pauseButtonLabel}
+          restartLabel={runtimeConfig.restartButtonLabel}
+          skipLabel={runtimeConfig.skipButtonLabel}
+          onPlay={() => {
+            void startPlayback();
+          }}
+          onPause={pausePlayback}
+          onRestart={() => {
+            void restartPlayback();
+          }}
+          onSkip={skipPlayback}
+        />
 
-            <button type="button" className="btn btn-outline-primary" onClick={pause} disabled={!isPlaying} aria-label="Pozastaviť">
-              <i className="bi bi-pause-fill me-2" />
-              Pozastaviť
-            </button>
-
-            <button type="button" className="btn btn-outline-secondary" onClick={() => void restart()} aria-label="Reštart">
-              <i className="bi bi-arrow-counterclockwise me-2" />
-              Reštart
-            </button>
-
-            <button type="button" className="btn btn-outline-danger" onClick={skip} aria-label="Preskočiť">
-              <i className="bi bi-skip-forward-fill me-2" />
-              Preskočiť
-            </button>
-          </div>
-        </div>
-
-        {/* Progress */}
-        <div className="position-absolute bottom-0 start-0 end-0 p-3" style={{ zIndex: 40 }}>
-          <div className="progress" style={{ height: 10 }}>
-            <div className="progress-bar" role="progressbar" style={{ width: `${progressPct}%` }} />
-          </div>
-        </div>
+        <PlaybackProgress progressPercentage={progressPercentage} heightPx={runtimeConfig.progressBarHeightPx} />
       </div>
     </div>
   );

@@ -2,43 +2,109 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import withAuth from "@/utilities/WithAuth";
 
-import axiosInstance from "@/utilities/AxiosInstance";
 import SceneBuilder, { SceneConfig } from "@/components/private/SceneBuilder";
 import Phase3Testing from "@/components/private/Phase3Testing";
 import Phase5Testing from "@/components/private/Phase5Testing";
+import axiosInstance from "@/utilities/AxiosInstance";
+import withAuth from "@/utilities/WithAuth";
+import {
+  controllerRuntimeConfig as sharedControllerRuntimeConfig,
+  phase3RuntimeConfig as sharedPhase3RuntimeConfig,
+  phase5RuntimeConfig as sharedPhase5RuntimeConfig,
+  sceneBuilderRuntimeConfig as sharedSceneBuilderRuntimeConfig,
+} from "./componentRuntimeConfigs";
 
-// Accept BOTH spellings you used across the project:
-// - original spec: "session_storage" | "database"
-// - some files:    "local_storage"  | "database"
+/* -------------------------------------------------------------------------------------------------
+ * Types
+ * -----------------------------------------------------------------------------------------------*/
+
 type StorageType = "session_storage" | "local_storage" | "database";
 type TestedCategory = "marketplace" | "mountains" | "zoo" | "street" | "home";
+type ScenePhase = 1 | 2 | 4 | 6;
+type ControllerStep = "boot" | "phase1" | "phase2" | "phase3" | "phase4" | "phase5" | "phase6" | "done" | "error";
+type RedirectResolver = string | ((categoryId: number) => string);
+type IncorrectQuestion = unknown;
+type CategorySceneList = Array<SceneConfig | undefined>;
+type ScenesByCategoryMap = Record<string, CategorySceneList>;
+type BrowserStorage = Storage | null;
 
-type Question = any;
-
-type Props = {
-  testedCategory: TestedCategory;
-
-  // scenes config supports BOTH schemas:
-  // A) { marketplace: [scene1, scene2, scene4, scene6] }
-  // B) { marketplace: { phase1:[scene], phase2:[scene], phase4:[scene], phase6:[scene] } }
-  scenesConfigPath: string;
-
-  // questions JSON for Phase3
-  questionnaireConfigPath: string;
-
-  storageType: StorageType;
-
-  // optional overrides
-  categoryId?: number;
-  sessionId?: number;
-
-  redirectTo?: string | ((categoryId: number) => string);
-  debug?: boolean;
+type SessionListItem = {
+  id?: number | string;
+  completed_at?: string | null;
+  created_at?: string | null;
+  started_at?: string | null;
 };
 
-type Step = "boot" | "phase1" | "phase2" | "phase3" | "phase4" | "phase5" | "phase6" | "done" | "error";
+type SessionCategoryStatus = {
+  id?: number | string;
+  completed_at?: string | null;
+};
+
+type ApiErrorShape = {
+  message?: string;
+};
+
+type AxiosLikeError = {
+  message?: string;
+  response?: {
+    status?: number;
+    data?: ApiErrorShape;
+  };
+};
+
+type ControllerRuntimeConfig = {
+  categoryCooldownHours: number;
+  defaultRedirectPath: string;
+  tolerateMarketplaceTypo: boolean;
+  noAnswersMessageFragment: string;
+  alreadyCompletedMessageFragment: string;
+  alreadyCorrectedMessageFragment: string;
+  bootLoadingAriaLabel: string;
+  sceneLoadingAriaLabel: string;
+  finalizingLoadingAriaLabel: string;
+  genericErrorTitle: string;
+  sceneMissingTitle: string;
+  missingSessionTitle: string;
+  finalizeErrorTitle: string;
+};
+
+type CategoryTestingControllerProps = {
+  testedCategory: TestedCategory;
+  scenesConfigPath: string;
+  questionnaireConfigPath: string;
+  storageType: StorageType;
+  categoryId?: number;
+  sessionId?: number;
+  redirectTo?: RedirectResolver;
+  debug?: boolean;
+  config?: Partial<ControllerRuntimeConfig>;
+};
+
+type FinalizeAndRedirectProps = {
+  storageType: StorageType;
+  sessionId: number | null;
+  categoryId: number;
+  localLastCompletedKey: string;
+  ensureCategoryCompletedDb: (sessionId: number) => Promise<void>;
+  redirectHref: string;
+  debug: boolean;
+  runtimeConfig: ControllerRuntimeConfig;
+};
+
+type FullscreenStatusProps = {
+  ariaLabel?: string;
+  title?: string;
+  subtitle?: React.ReactNode;
+  children?: React.ReactNode;
+  centered?: boolean;
+};
+
+/* -------------------------------------------------------------------------------------------------
+ * Runtime config
+ * -----------------------------------------------------------------------------------------------*/
+
+const DEFAULT_RUNTIME_CONFIG: ControllerRuntimeConfig = sharedControllerRuntimeConfig;
 
 const CATEGORY_ID_BY_KEY: Record<TestedCategory, number> = {
   marketplace: 1,
@@ -48,482 +114,615 @@ const CATEGORY_ID_BY_KEY: Record<TestedCategory, number> = {
   home: 5,
 };
 
-const PHASE_TO_SCENE_INDEX: Record<1 | 2 | 4 | 6, number> = {
+const PHASE_TO_SCENE_INDEX: Record<ScenePhase, number> = {
   1: 0,
   2: 1,
   4: 2,
   6: 3,
 };
 
-function normalizeSceneKey(k: string): string {
-  const s = (k ?? "").trim().toLowerCase();
-  if (s === "marketplace") return "marketplace";
-  if (s === "marketpace") return "marketplace"; // tolerate typo
-  return s;
+/* -------------------------------------------------------------------------------------------------
+ * Utility helpers
+ * -----------------------------------------------------------------------------------------------*/
+
+function normalizeSceneKey(rawKey: string, runtimeConfig: ControllerRuntimeConfig): string {
+  const normalizedKey = rawKey.trim().toLowerCase();
+
+  if (normalizedKey === "marketplace") {
+    return "marketplace";
+  }
+
+  if (runtimeConfig.tolerateMarketplaceTypo && normalizedKey === "marketpace") {
+    return "marketplace";
+  }
+
+  return normalizedKey;
 }
 
-function hoursDiff(a: Date, b: Date): number {
-  return Math.abs(a.getTime() - b.getTime()) / (1000 * 60 * 60);
+function getHoursDifference(firstDate: Date, secondDate: Date): number {
+  return Math.abs(firstDate.getTime() - secondDate.getTime()) / (1000 * 60 * 60);
 }
 
-function toSceneConfig(x: any): SceneConfig | undefined {
-  if (!x) return undefined;
-  if (Array.isArray(x)) return x[0] as SceneConfig | undefined; // some configs use arrays with 1 item
-  if (typeof x === "object") return x as SceneConfig;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function extractApiError(error: unknown): { status?: number; message: string } {
+  const typedError = error as AxiosLikeError;
+
+  return {
+    status: typedError?.response?.status,
+    message: typedError?.response?.data?.message ?? typedError?.message ?? "Unknown error",
+  };
+}
+
+function isValidDate(date: Date): boolean {
+  return Number.isFinite(date.getTime());
+}
+
+function parseApiDate(value: unknown): Date | null {
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+
+  const parsedDate = new Date(value);
+  return isValidDate(parsedDate) ? parsedDate : null;
+}
+
+function toSceneConfig(value: unknown): SceneConfig | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    return value[0] as SceneConfig | undefined;
+  }
+
+  if (isRecord(value)) {
+    return value as SceneConfig;
+  }
+
   return undefined;
 }
 
-function normalizePhased(obj: any): Array<SceneConfig | undefined> {
-  const p1 = toSceneConfig(obj.phase1 ?? obj.PHASE_1 ?? obj.phase_1);
-  const p2 = toSceneConfig(obj.phase2 ?? obj.PHASE_2 ?? obj.phase_2);
-  const p4 = toSceneConfig(obj.phase4 ?? obj.PHASE_4 ?? obj.phase_4);
-  const p6 = toSceneConfig(obj.phase6 ?? obj.PHASE_6 ?? obj.phase_6);
-  return [p1, p2, p4, p6];
+function normalizePhasedScenes(phasedConfig: Record<string, unknown>): CategorySceneList {
+  return [
+    toSceneConfig(phasedConfig.phase1 ?? phasedConfig.PHASE_1 ?? phasedConfig.phase_1),
+    toSceneConfig(phasedConfig.phase2 ?? phasedConfig.PHASE_2 ?? phasedConfig.phase_2),
+    toSceneConfig(phasedConfig.phase4 ?? phasedConfig.PHASE_4 ?? phasedConfig.phase_4),
+    toSceneConfig(phasedConfig.phase6 ?? phasedConfig.PHASE_6 ?? phasedConfig.phase_6),
+  ];
 }
+
+function looksLikePhasedSceneConfig(value: unknown): value is Record<string, unknown> {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return Boolean(value.phase1 || value.phase2 || value.phase4 || value.phase6 || value.PHASE_1 || value.PHASE_2 || value.PHASE_4 || value.PHASE_6);
+}
+
+function getBrowserStorage(storageType: StorageType): BrowserStorage {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return storageType === "session_storage" ? window.sessionStorage : window.localStorage;
+}
+
+function resolveRedirectPath(redirectTo: RedirectResolver | undefined, categoryId: number, runtimeConfig: ControllerRuntimeConfig): string {
+  if (typeof redirectTo === "function") {
+    return redirectTo(categoryId);
+  }
+
+  if (typeof redirectTo === "string" && redirectTo.trim()) {
+    return redirectTo.trim();
+  }
+
+  return runtimeConfig.defaultRedirectPath;
+}
+
+function getSessionSortTimestamp(session: SessionListItem): number {
+  const createdAt = parseApiDate(session.created_at);
+  const startedAt = parseApiDate(session.started_at);
+
+  return createdAt?.getTime() ?? startedAt?.getTime() ?? 0;
+}
+
+function isErrorMessageMatch(message: string, fragment: string): boolean {
+  return message.toLowerCase().includes(fragment.toLowerCase());
+}
+
+/* -------------------------------------------------------------------------------------------------
+ * Small UI building blocks
+ * -----------------------------------------------------------------------------------------------*/
+
+function FullscreenStatus({ ariaLabel, title, subtitle, children }: FullscreenStatusProps) {
+  const hasText = Boolean(title || subtitle || children);
+
+  return (
+    <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white p-3 text-center">
+      {hasText ? (
+        <div>
+          {title ? (
+            <div className="fw-semibold" style={{ fontSize: "1.25rem" }}>
+              {title}
+            </div>
+          ) : null}
+          {subtitle ? <div className="text-muted small">{subtitle}</div> : null}
+          {children}
+        </div>
+      ) : (
+        <div className="spinner-border" role="status" aria-label={ariaLabel} />
+      )}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------------------------------
+ * Main controller
+ * -----------------------------------------------------------------------------------------------*/
 
 function CategoryTestingController({
   testedCategory,
   scenesConfigPath,
   questionnaireConfigPath,
   storageType,
-  categoryId: categoryIdProp,
-  sessionId: sessionIdProp,
+  categoryId: categoryIdOverride,
+  sessionId: initialSessionId,
   redirectTo,
   debug = false,
-}: Props) {
-  const router = useRouter();
+  config,
+}: CategoryTestingControllerProps) {
+  const runtimeConfig = useMemo(() => ({ ...DEFAULT_RUNTIME_CONFIG, ...config }), [config]);
 
   const log = useCallback(
-    (...args: any[]) => {
-      if (debug) console.log("[CategoryTestingController]", ...args);
+    (...args: unknown[]) => {
+      if (debug) {
+        console.log("[CategoryTestingController]", ...args);
+      }
     },
     [debug],
   );
 
-  const categoryId = useMemo(() => categoryIdProp ?? CATEGORY_ID_BY_KEY[testedCategory], [categoryIdProp, testedCategory]);
-
-  const [step, setStep] = useState<Step>("boot");
-  const [bootError, setBootError] = useState<string | null>(null);
-
-  const [sessionId, setSessionId] = useState<number | null>(sessionIdProp ?? null);
-
-  // value = [phase1, phase2, phase4, phase6] (some may be undefined if config missing)
-  const [scenesByCategory, setScenesByCategory] = useState<Record<string, Array<SceneConfig | undefined>>>({});
-  const [scenesLoaded, setScenesLoaded] = useState(false);
-
-  const [wrongQuestions, setWrongQuestions] = useState<Question[]>([]);
-
+  const categoryId = useMemo(() => categoryIdOverride ?? CATEGORY_ID_BY_KEY[testedCategory], [categoryIdOverride, testedCategory]);
   const localLastCompletedKey = useMemo(() => `category:lastCompletedAt:${categoryId}`, [categoryId]);
 
-  const scenesForThisCategory = useMemo(() => {
-    const key = normalizeSceneKey(testedCategory);
-    const byKey = scenesByCategory[key];
-    if (byKey?.length) return byKey;
+  const [step, setStep] = useState<ControllerStep>("boot");
+  const [bootError, setBootError] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<number | null>(initialSessionId ?? null);
+  const [scenesLoaded, setScenesLoaded] = useState(false);
+  const [scenesByCategory, setScenesByCategory] = useState<ScenesByCategoryMap>({});
+  const [incorrectQuestions, setIncorrectQuestions] = useState<IncorrectQuestion[]>([]);
 
-    // legacy tolerance
-    if (key === "marketplace") {
-      const legacy = scenesByCategory["marketpace"];
-      if (legacy?.length) return legacy;
+  const scenesForCurrentCategory = useMemo(() => {
+    const normalizedCategoryKey = normalizeSceneKey(testedCategory, runtimeConfig);
+    const directMatch = scenesByCategory[normalizedCategoryKey];
+
+    if (directMatch?.length) {
+      return directMatch;
     }
+
+    if (runtimeConfig.tolerateMarketplaceTypo && normalizedCategoryKey === "marketplace") {
+      const legacyMarketplaceMatch = scenesByCategory["marketpace"];
+      if (legacyMarketplaceMatch?.length) {
+        return legacyMarketplaceMatch;
+      }
+    }
+
     return null;
-  }, [scenesByCategory, testedCategory]);
+  }, [runtimeConfig, scenesByCategory, testedCategory]);
 
-  const getScene = (phase: 1 | 2 | 4 | 6): SceneConfig | null => {
-    const arr = scenesForThisCategory;
-    if (!arr) return null;
-    const idx = PHASE_TO_SCENE_INDEX[phase];
-    return arr[idx] ?? null;
-  };
+  const getSceneForPhase = useCallback(
+    (phase: ScenePhase): SceneConfig | null => {
+      if (!scenesForCurrentCategory) {
+        return null;
+      }
 
-  const resolveRedirect = (cid: number) => {
-    if (typeof redirectTo === "function") return redirectTo(cid);
-    if (typeof redirectTo === "string" && redirectTo.trim()) return redirectTo.trim();
-    return "/dashboard";
-  };
+      return scenesForCurrentCategory[PHASE_TO_SCENE_INDEX[phase]] ?? null;
+    },
+    [scenesForCurrentCategory],
+  );
 
-  const getWebStorage = () => {
-    // Only call in browser contexts (we do), still keep it defensive.
-    if (typeof window === "undefined") return null;
-    return storageType === "session_storage" ? window.sessionStorage : window.localStorage;
-  };
-
-  const loadScenesConfig = useCallback(async () => {
+  const loadScenesConfig = useCallback(async (): Promise<void> => {
     setScenesLoaded(false);
 
-    const r = await fetch(scenesConfigPath, { cache: "no-store" });
-    if (!r.ok) {
-      throw new Error(`Failed to load scenesConfig (${r.status}) from ${scenesConfigPath}`);
+    const response = await fetch(scenesConfigPath, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Failed to load scenesConfig (${response.status}) from ${scenesConfigPath}`);
     }
 
-    let json: any;
+    let parsedJson: unknown;
     try {
-      json = await r.json();
+      parsedJson = await response.json();
     } catch {
       throw new Error(`Scenes config is not valid JSON: ${scenesConfigPath}`);
     }
 
-    const out: Record<string, Array<SceneConfig | undefined>> = {};
+    const normalizedScenes: ScenesByCategoryMap = {};
 
-    // If file is directly phased object (no category wrapper), bind it to current category.
-    const looksPhased =
-      json &&
-      typeof json === "object" &&
-      (json.phase1 || json.phase2 || json.phase4 || json.phase6 || json.PHASE_1 || json.PHASE_2 || json.PHASE_4 || json.PHASE_6);
-
-    if (looksPhased) {
-      const k = normalizeSceneKey(testedCategory);
-      out[k] = normalizePhased(json);
-      setScenesByCategory(out);
+    if (looksLikePhasedSceneConfig(parsedJson)) {
+      const currentCategoryKey = normalizeSceneKey(testedCategory, runtimeConfig);
+      normalizedScenes[currentCategoryKey] = normalizePhasedScenes(parsedJson);
+      setScenesByCategory(normalizedScenes);
       setScenesLoaded(true);
       return;
     }
 
-    // Normal case: { [categoryKey]: ... }
-    if (json && typeof json === "object") {
-      for (const [kRaw, v] of Object.entries(json as any)) {
-        const k = normalizeSceneKey(kRaw);
+    if (isRecord(parsedJson)) {
+      for (const [rawCategoryKey, rawCategoryValue] of Object.entries(parsedJson)) {
+        const normalizedCategoryKey = normalizeSceneKey(rawCategoryKey, runtimeConfig);
 
-        // Schema A: category: [scene1, scene2, scene4, scene6]
-        if (Array.isArray(v)) {
-          out[k] = v as SceneConfig[];
-          out[kRaw] = v as SceneConfig[];
+        if (Array.isArray(rawCategoryValue)) {
+          normalizedScenes[normalizedCategoryKey] = rawCategoryValue as SceneConfig[];
+          normalizedScenes[rawCategoryKey] = rawCategoryValue as SceneConfig[];
           continue;
         }
 
-        // Schema B: category: { phase1:[scene], phase2:[scene], ... }
-        if (v && typeof v === "object") {
-          const arr = normalizePhased(v);
-          out[k] = arr;
-          out[kRaw] = arr;
+        if (isRecord(rawCategoryValue)) {
+          const phasedScenes = normalizePhasedScenes(rawCategoryValue);
+          normalizedScenes[normalizedCategoryKey] = phasedScenes;
+          normalizedScenes[rawCategoryKey] = phasedScenes;
         }
       }
     }
 
-    setScenesByCategory(out);
+    setScenesByCategory(normalizedScenes);
     setScenesLoaded(true);
-  }, [scenesConfigPath, testedCategory]);
+  }, [runtimeConfig, scenesConfigPath, testedCategory]);
 
-  const ensureDbSessionId = useCallback(async (): Promise<number> => {
-    if (storageType !== "database") throw new Error("ensureDbSessionId called in non-db mode");
-    if (sessionIdProp) return sessionIdProp;
-    if (sessionId != null) return sessionId;
+  const ensureDatabaseSessionId = useCallback(async (): Promise<number> => {
+    if (storageType !== "database") {
+      throw new Error("ensureDatabaseSessionId called in non-database mode");
+    }
 
-    // marketplace => always new session
+    if (initialSessionId) {
+      return initialSessionId;
+    }
+
+    if (sessionId !== null) {
+      return sessionId;
+    }
+
     if (testedCategory === "marketplace") {
-      const res = await axiosInstance.post("/sessions");
-      const sid = Number(res?.data?.session_id);
-      if (!Number.isFinite(sid)) throw new Error("create_session: missing session_id");
-      setSessionId(sid);
-      log("created session for marketplace:", sid);
-      return sid;
+      const response = await axiosInstance.post("/sessions");
+      const createdSessionId = Number(response?.data?.session_id);
+
+      if (!Number.isFinite(createdSessionId)) {
+        throw new Error("create_session: missing session_id");
+      }
+
+      setSessionId(createdSessionId);
+      log("created session for marketplace", createdSessionId);
+      return createdSessionId;
     }
 
-    // others => reuse newest open session if exists, else create
-    const list = await axiosInstance.get("/sessions");
-    const sessions = Array.isArray(list?.data) ? list.data : [];
+    const response = await axiosInstance.get("/sessions");
+    const sessions = Array.isArray(response?.data) ? (response.data as SessionListItem[]) : [];
 
-    // Prefer "newest open" if backend returns created_at/started_at, otherwise first open.
-    const open = sessions
-      .filter((s: any) => s && s.completed_at == null && Number.isFinite(Number(s.id)))
-      .sort((a: any, b: any) => {
-        const ta = new Date(a?.created_at ?? a?.started_at ?? 0).getTime();
-        const tb = new Date(b?.created_at ?? b?.started_at ?? 0).getTime();
-        return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
-      })[0];
+    const newestOpenSession = sessions
+      .filter((session) => session && session.completed_at == null && Number.isFinite(Number(session.id)))
+      .sort((leftSession, rightSession) => getSessionSortTimestamp(rightSession) - getSessionSortTimestamp(leftSession))[0];
 
-    if (open) {
-      const sid = Number(open.id);
-      setSessionId(sid);
-      log("reusing open session:", sid);
-      return sid;
+    if (newestOpenSession) {
+      const reusedSessionId = Number(newestOpenSession.id);
+      setSessionId(reusedSessionId);
+      log("reusing open session", reusedSessionId);
+      return reusedSessionId;
     }
 
-    const created = await axiosInstance.post("/sessions");
-    const sid = Number(created?.data?.session_id);
-    if (!Number.isFinite(sid)) throw new Error("create_session fallback: missing session_id");
-    setSessionId(sid);
-    log("created fallback session:", sid);
-    return sid;
-  }, [storageType, sessionIdProp, sessionId, testedCategory, log]);
+    const createFallbackResponse = await axiosInstance.post("/sessions");
+    const fallbackSessionId = Number(createFallbackResponse?.data?.session_id);
 
-  const findLatestCategoryCompletionDb = useCallback(async (): Promise<Date | null> => {
-    const list = await axiosInstance.get("/sessions");
-    const sessions = Array.isArray(list?.data) ? list.data : [];
+    if (!Number.isFinite(fallbackSessionId)) {
+      throw new Error("create_session fallback: missing session_id");
+    }
 
-    let latest: Date | null = null;
+    setSessionId(fallbackSessionId);
+    log("created fallback session", fallbackSessionId);
+    return fallbackSessionId;
+  }, [storageType, initialSessionId, sessionId, testedCategory, log]);
 
-    for (const s of sessions) {
-      const sid = Number(s?.id);
-      if (!Number.isFinite(sid)) continue;
+  const findLatestCategoryCompletionInDatabase = useCallback(async (): Promise<Date | null> => {
+    const response = await axiosInstance.get("/sessions");
+    const sessions = Array.isArray(response?.data) ? (response.data as SessionListItem[]) : [];
+
+    let latestCompletionDate: Date | null = null;
+
+    for (const session of sessions) {
+      const currentSessionId = Number(session?.id);
+      if (!Number.isFinite(currentSessionId)) {
+        continue;
+      }
 
       try {
-        const catsRes = await axiosInstance.get(`/sessions/${sid}/categories`);
-        const cats = Array.isArray(catsRes?.data) ? catsRes.data : [];
-        const row = cats.find((c: any) => Number(c?.id) === Number(categoryId));
-        const completedAt = row?.completed_at;
-        if (!completedAt) continue;
+        const categoriesResponse = await axiosInstance.get(`/sessions/${currentSessionId}/categories`);
+        const categories = Array.isArray(categoriesResponse?.data) ? (categoriesResponse.data as SessionCategoryStatus[]) : [];
+        const matchingCategory = categories.find((category) => Number(category?.id) === Number(categoryId));
+        const completedAt = parseApiDate(matchingCategory?.completed_at);
 
-        const d = new Date(completedAt);
-        if (!Number.isFinite(d.getTime())) continue;
+        if (!completedAt) {
+          continue;
+        }
 
-        if (!latest || d.getTime() > latest.getTime()) latest = d;
+        if (!latestCompletionDate || completedAt.getTime() > latestCompletionDate.getTime()) {
+          latestCompletionDate = completedAt;
+        }
       } catch {
-        // ignore
+        // Ignore per-session category lookup failures and continue scanning the remaining sessions.
       }
     }
 
-    return latest;
+    return latestCompletionDate;
   }, [categoryId]);
 
   const shouldShowPhase1 = useCallback(async (): Promise<boolean> => {
-    if (testedCategory === "marketplace") return true;
+    if (testedCategory === "marketplace") {
+      return true;
+    }
 
     if (storageType !== "database") {
       try {
-        const store = getWebStorage();
-        if (!store) return true;
+        const browserStorage = getBrowserStorage(storageType);
+        if (!browserStorage) {
+          return true;
+        }
 
-        const raw = store.getItem(localLastCompletedKey);
-        if (!raw) return true;
+        const rawCompletionDate = browserStorage.getItem(localLastCompletedKey);
+        if (!rawCompletionDate) {
+          return true;
+        }
 
-        const d = new Date(raw);
-        if (!Number.isFinite(d.getTime())) return true;
+        const completionDate = parseApiDate(rawCompletionDate);
+        if (!completionDate) {
+          return true;
+        }
 
-        return hoursDiff(new Date(), d) > 4;
+        return getHoursDifference(new Date(), completionDate) > runtimeConfig.categoryCooldownHours;
       } catch {
         return true;
       }
     }
 
     try {
-      const last = await findLatestCategoryCompletionDb();
-      if (!last) return true;
-      return hoursDiff(new Date(), last) > 4;
+      const latestCompletionDate = await findLatestCategoryCompletionInDatabase();
+      if (!latestCompletionDate) {
+        return true;
+      }
+
+      return getHoursDifference(new Date(), latestCompletionDate) > runtimeConfig.categoryCooldownHours;
     } catch {
       return true;
     }
-  }, [testedCategory, storageType, localLastCompletedKey, findLatestCategoryCompletionDb]);
+  }, [runtimeConfig.categoryCooldownHours, testedCategory, storageType, localLastCompletedKey, findLatestCategoryCompletionInDatabase]);
 
-  const ensureCategoryCompletedDb = useCallback(
-    async (sid: number) => {
+  const ensureCategoryCompletedInDatabase = useCallback(
+    async (databaseSessionId: number): Promise<void> => {
       try {
-        await axiosInstance.patch(`/sessions/${sid}/categories/${categoryId}/complete`);
-        log("category completed:", { sid, categoryId });
+        await axiosInstance.patch(`/sessions/${databaseSessionId}/categories/${categoryId}/complete`);
+        log("category completed", { databaseSessionId, categoryId });
         return;
-      } catch (e: any) {
-        const msg = e?.response?.data?.message ?? "";
-        const status = e?.response?.status;
+      } catch (error) {
+        const { status, message } = extractApiError(error);
 
-        // backend requires at least one answer; seed dummy then retry
-        if (status === 400 && typeof msg === "string" && msg.toLowerCase().includes("no answers")) {
-          log("no answers; seeding then completing");
-          await axiosInstance.post(`/sessions/${sid}/answers`, {
+        if (status === 400 && isErrorMessageMatch(message, runtimeConfig.noAnswersMessageFragment)) {
+          log("category has no answers, seeding placeholder answer before completion");
+          await axiosInstance.post(`/sessions/${databaseSessionId}/answers`, {
             category_id: categoryId,
             question_number: 1,
             answer_state: "0",
             user_answer: null,
           });
-          await axiosInstance.patch(`/sessions/${sid}/categories/${categoryId}/complete`);
-          log("category completed after seeding:", { sid, categoryId });
+          await axiosInstance.patch(`/sessions/${databaseSessionId}/categories/${categoryId}/complete`);
+          log("category completed after placeholder answer", { databaseSessionId, categoryId });
           return;
         }
 
-        if (status === 400 && typeof msg === "string" && msg.toLowerCase().includes("already completed")) return;
+        if (status === 400 && isErrorMessageMatch(message, runtimeConfig.alreadyCompletedMessageFragment)) {
+          return;
+        }
 
-        throw e;
+        throw error;
       }
     },
-    [categoryId, log],
+    [categoryId, log, runtimeConfig.alreadyCompletedMessageFragment, runtimeConfig.noAnswersMessageFragment],
   );
 
-  const markCorrectedDb = useCallback(
-    async (sid: number) => {
+  const markCategoryCorrectedInDatabase = useCallback(
+    async (databaseSessionId: number): Promise<void> => {
       try {
-        await axiosInstance.patch(`/sessions/${sid}/categories/${categoryId}/correct`);
-        log("category corrected:", { sid, categoryId });
-      } catch (e: any) {
-        const msg = e?.response?.data?.message ?? "";
-        const status = e?.response?.status;
-        if (status === 400 && typeof msg === "string" && msg.toLowerCase().includes("already corrected")) return;
-        log("correct_category failed (non-fatal):", e?.response?.status, e?.response?.data);
+        await axiosInstance.patch(`/sessions/${databaseSessionId}/categories/${categoryId}/correct`);
+        log("category corrected", { databaseSessionId, categoryId });
+      } catch (error) {
+        const { status, message } = extractApiError(error);
+
+        if (status === 400 && isErrorMessageMatch(message, runtimeConfig.alreadyCorrectedMessageFragment)) {
+          return;
+        }
+
+        log("correct category failed (non-fatal)", extractApiError(error));
       }
     },
-    [categoryId, log],
+    [categoryId, log, runtimeConfig.alreadyCorrectedMessageFragment],
   );
 
-  // Helpful debug: show step changes (stable, won't cause loops)
   useEffect(() => {
-    log("step =", step, { testedCategory, storageType, categoryId, sessionId });
+    log("step changed", { step, testedCategory, storageType, categoryId, sessionId });
   }, [step, testedCategory, storageType, categoryId, sessionId, log]);
 
-  // boot
   useEffect(() => {
-    let cancelled = false;
+    let isCancelled = false;
 
-    (async () => {
+    const boot = async () => {
       setStep("boot");
       setBootError(null);
-      setWrongQuestions([]);
+      setIncorrectQuestions([]);
 
       try {
         await loadScenesConfig();
-        log("scenes loaded from", scenesConfigPath);
+        log("scenes loaded", scenesConfigPath);
 
         if (storageType === "database") {
-          const sid = await ensureDbSessionId();
-          if (cancelled) return;
-          setSessionId(sid);
+          const databaseSessionId = await ensureDatabaseSessionId();
+          if (isCancelled) {
+            return;
+          }
+
+          setSessionId(databaseSessionId);
         }
 
-        const show1 = await shouldShowPhase1();
-        if (cancelled) return;
+        const displayPhase1 = await shouldShowPhase1();
+        if (isCancelled) {
+          return;
+        }
 
-        setStep(show1 ? "phase1" : "phase2");
-      } catch (e: any) {
-        if (cancelled) return;
-        setBootError(e?.message ?? "Boot failed");
+        setStep(displayPhase1 ? "phase1" : "phase2");
+      } catch (error) {
+        if (isCancelled) {
+          return;
+        }
+
+        setBootError(extractApiError(error).message || "Boot failed");
         setStep("error");
-        log("boot error:", e);
+        log("boot error", extractApiError(error));
       }
-    })();
+    };
+
+    void boot();
 
     return () => {
-      cancelled = true;
+      isCancelled = true;
     };
-  }, [
-    testedCategory,
-    scenesConfigPath,
-    questionnaireConfigPath,
-    storageType,
-    categoryIdProp,
-    sessionIdProp,
-    loadScenesConfig,
-    ensureDbSessionId,
-    shouldShowPhase1,
-    log,
-  ]);
+  }, [loadScenesConfig, ensureDatabaseSessionId, shouldShowPhase1, log, scenesConfigPath, storageType]);
 
-  // If something ever routes into phase5 with no wrong questions, move on SAFELY (no setState during render).
   useEffect(() => {
-    if (step === "phase5" && (!wrongQuestions || wrongQuestions.length === 0)) {
-      log("phase5 entered with empty wrongQuestions -> skipping to phase6");
+    if (step === "phase5" && incorrectQuestions.length === 0) {
+      log("phase5 entered without incorrect questions, skipping to phase6");
       setStep("phase6");
     }
-  }, [step, wrongQuestions, log]);
+  }, [step, incorrectQuestions.length, log]);
 
-  const renderScenePhase = (phase: 1 | 2 | 4 | 6, next: Step) => {
-    if (!scenesLoaded) {
-      return (
-        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white">
-          <div className="spinner-border" role="status" aria-label="Načítavam konfiguráciu" />
-        </div>
-      );
-    }
+  const renderScenePhase = useCallback(
+    (phase: ScenePhase, nextStep: ControllerStep) => {
+      if (!scenesLoaded) {
+        return <FullscreenStatus ariaLabel={runtimeConfig.sceneLoadingAriaLabel} />;
+      }
 
-    const cfg = getScene(phase);
-    if (!cfg) {
-      return (
-        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white p-3 text-center">
-          <div>
-            <div className="fw-semibold" style={{ fontSize: "1.25rem" }}>
-              Chýba konfigurácia scény
-            </div>
-            <div className="text-muted small">
-              category={testedCategory}, phase={phase}, path={scenesConfigPath}
-            </div>
-            {debug && (
+      const sceneConfig = getSceneForPhase(phase);
+      if (!sceneConfig) {
+        return (
+          <FullscreenStatus
+            title={runtimeConfig.sceneMissingTitle}
+            subtitle={
+              <>
+                category={testedCategory}, phase={phase}, path={scenesConfigPath}
+              </>
+            }
+          >
+            {debug ? (
               <pre className="text-start small mt-3 bg-light p-2 rounded" style={{ maxWidth: 720, overflow: "auto" }}>
-                {JSON.stringify({ scenesForThisCategory }, null, 2)}
+                {JSON.stringify({ scenesForCurrentCategory }, null, 2)}
               </pre>
-            )}
-          </div>
-        </div>
-      );
-    }
+            ) : null}
+          </FullscreenStatus>
+        );
+      }
 
-    return <SceneBuilder config={cfg} debug={debug} onComplete={() => setStep(next)} onSkip={() => setStep(next)} />;
-  };
+      return (
+        <SceneBuilder
+          config={sceneConfig}
+          runtimeConfig={sharedSceneBuilderRuntimeConfig}
+          debug={debug}
+          onComplete={() => setStep(nextStep)}
+          onSkip={() => setStep(nextStep)}
+        />
+      );
+    },
+    [
+      debug,
+      getSceneForPhase,
+      runtimeConfig.sceneLoadingAriaLabel,
+      runtimeConfig.sceneMissingTitle,
+      scenesLoaded,
+      scenesConfigPath,
+      scenesForCurrentCategory,
+      testedCategory,
+    ],
+  );
 
   if (step === "boot") {
-    return (
-      <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white">
-        <div className="spinner-border" role="status" aria-label="Načítavam" />
-      </div>
-    );
+    return <FullscreenStatus ariaLabel={runtimeConfig.bootLoadingAriaLabel} />;
   }
 
   if (step === "error") {
-    return (
-      <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white p-3 text-center">
-        <div>
-          <div className="fw-semibold" style={{ fontSize: "1.25rem" }}>
-            Chyba
-          </div>
-          <div className="text-muted small">{bootError ?? "Neznáma chyba"}</div>
-        </div>
-      </div>
-    );
+    return <FullscreenStatus title={runtimeConfig.genericErrorTitle} subtitle={bootError ?? "Neznáma chyba"} />;
   }
 
-  if (step === "phase1") return renderScenePhase(1, "phase2");
-  if (step === "phase2") return renderScenePhase(2, "phase3");
+  if (step === "phase1") {
+    return renderScenePhase(1, "phase2");
+  }
+
+  if (step === "phase2") {
+    return renderScenePhase(2, "phase3");
+  }
 
   if (step === "phase3") {
-    const sid = storageType === "database" ? sessionId : undefined;
+    const databaseSessionId = storageType === "database" ? sessionId : undefined;
 
-    if (storageType === "database" && !sid) {
-      return (
-        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white p-3 text-center">
-          <div>
-            <div className="fw-semibold" style={{ fontSize: "1.25rem" }}>
-              Chýba sessionId
-            </div>
-            <div className="text-muted small">Controller nedokázal vytvoriť / nájsť session.</div>
-          </div>
-        </div>
-      );
+    if (storageType === "database" && !databaseSessionId) {
+      return <FullscreenStatus title={runtimeConfig.missingSessionTitle} subtitle="Controller nedokázal vytvoriť alebo nájsť session." />;
     }
 
     return (
       <Phase3Testing
         questionnaireConfigPath={questionnaireConfigPath}
         categoryId={categoryId}
-        storageType={storageType as any}
-        sessionId={sid ?? undefined}
+        storageType={storageType as React.ComponentProps<typeof Phase3Testing>["storageType"]}
+        sessionId={databaseSessionId ?? undefined}
         debug={debug}
-        onComplete={(incorrect: Question[]) => {
-          const inc = Array.isArray(incorrect) ? incorrect : [];
-          setWrongQuestions(inc);
-          setStep(inc.length > 0 ? "phase4" : "phase6");
+        config={sharedPhase3RuntimeConfig}
+        onComplete={(receivedIncorrectQuestions: IncorrectQuestion[]) => {
+          const normalizedIncorrectQuestions = Array.isArray(receivedIncorrectQuestions) ? receivedIncorrectQuestions : [];
+          setIncorrectQuestions(normalizedIncorrectQuestions);
+          setStep(normalizedIncorrectQuestions.length > 0 ? "phase4" : "phase6");
         }}
       />
     );
   }
 
-  if (step === "phase4") return renderScenePhase(4, "phase5");
+  if (step === "phase4") {
+    return renderScenePhase(4, "phase5");
+  }
 
   if (step === "phase5") {
-    const sid = storageType === "database" ? sessionId : undefined;
+    const databaseSessionId = storageType === "database" ? sessionId : undefined;
 
-    // NOTE: skipping-to-phase6 is handled in a useEffect to avoid setState during render.
-    if (!wrongQuestions.length) return null;
+    if (incorrectQuestions.length === 0) {
+      return null;
+    }
 
     return (
       <Phase5Testing
-        wrongQuestions={wrongQuestions}
+        wrongQuestions={incorrectQuestions as React.ComponentProps<typeof Phase5Testing>["wrongQuestions"]}
         categoryId={categoryId}
-        storageType={storageType as any}
-        sessionId={sid ?? undefined}
+        storageType={storageType as React.ComponentProps<typeof Phase5Testing>["storageType"]}
+        sessionId={databaseSessionId ?? undefined}
         debug={debug}
+        config={sharedPhase5RuntimeConfig}
         onComplete={async () => {
-          if (storageType === "database" && sid) await markCorrectedDb(sid);
+          if (storageType === "database" && databaseSessionId) {
+            await markCategoryCorrectedInDatabase(databaseSessionId);
+          }
+
           setStep("phase6");
         }}
       />
     );
   }
 
-  if (step === "phase6") return renderScenePhase(6, "done");
+  if (step === "phase6") {
+    return renderScenePhase(6, "done");
+  }
 
   if (step === "done") {
     return (
@@ -532,15 +731,20 @@ function CategoryTestingController({
         sessionId={sessionId}
         categoryId={categoryId}
         localLastCompletedKey={localLastCompletedKey}
-        ensureCategoryCompletedDb={ensureCategoryCompletedDb}
-        redirectHref={resolveRedirect(categoryId)}
+        ensureCategoryCompletedDb={ensureCategoryCompletedInDatabase}
+        redirectHref={resolveRedirectPath(redirectTo, categoryId, runtimeConfig)}
         debug={debug}
+        runtimeConfig={runtimeConfig}
       />
     );
   }
 
   return null;
 }
+
+/* -------------------------------------------------------------------------------------------------
+ * Finalization step
+ * -----------------------------------------------------------------------------------------------*/
 
 function FinalizeAndRedirect({
   storageType,
@@ -550,79 +754,70 @@ function FinalizeAndRedirect({
   ensureCategoryCompletedDb,
   redirectHref,
   debug,
-}: {
-  storageType: StorageType;
-  sessionId: number | null;
-  categoryId: number;
-  localLastCompletedKey: string;
-  ensureCategoryCompletedDb: (sid: number) => Promise<void>;
-  redirectHref: string;
-  debug: boolean;
-}) {
+  runtimeConfig,
+}: FinalizeAndRedirectProps) {
   const router = useRouter();
-  const [err, setErr] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const log = useCallback(
-    (...args: any[]) => {
-      if (debug) console.log("[FinalizeAndRedirect]", ...args);
+    (...args: unknown[]) => {
+      if (debug) {
+        console.log("[FinalizeAndRedirect]", ...args);
+      }
     },
     [debug],
   );
 
-  const getWebStorage = () => {
-    if (typeof window === "undefined") return null;
-    return storageType === "session_storage" ? window.sessionStorage : window.localStorage;
-  };
-
   useEffect(() => {
-    let cancelled = false;
+    let isCancelled = false;
 
-    (async () => {
+    const finalize = async () => {
       try {
         if (storageType === "database") {
-          if (!sessionId) throw new Error("Missing sessionId at finalize");
+          if (!sessionId) {
+            throw new Error("Missing sessionId at finalize");
+          }
+
           await ensureCategoryCompletedDb(sessionId);
         } else {
-          const store = getWebStorage();
-          if (!store) throw new Error("Web storage not available");
-          store.setItem(localLastCompletedKey, new Date().toISOString());
+          const browserStorage = getBrowserStorage(storageType);
+          if (!browserStorage) {
+            throw new Error("Web storage not available");
+          }
+
+          browserStorage.setItem(localLastCompletedKey, new Date().toISOString());
         }
 
-        if (cancelled) return;
+        if (isCancelled) {
+          return;
+        }
 
-        log("redirect", { storageType, sessionId, categoryId, to: redirectHref });
+        log("redirecting after category completion", { storageType, sessionId, categoryId, redirectHref });
         router.push(redirectHref);
         router.refresh();
-      } catch (e: any) {
-        if (cancelled) return;
-        setErr(e?.message ?? "Finalize failed");
-        log("finalize error:", e);
+      } catch (error) {
+        if (isCancelled) {
+          return;
+        }
+
+        const parsedError = extractApiError(error);
+        setErrorMessage(parsedError.message || "Finalize failed");
+        log("finalize error", parsedError);
       }
-    })();
+    };
+
+    void finalize();
 
     return () => {
-      cancelled = true;
+      isCancelled = true;
     };
   }, [storageType, sessionId, categoryId, localLastCompletedKey, ensureCategoryCompletedDb, redirectHref, router, log]);
 
-  if (!err) {
-    return (
-      <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white">
-        <div className="spinner-border" role="status" aria-label="Dokončujem" />
-      </div>
-    );
+  if (!errorMessage) {
+    return <FullscreenStatus ariaLabel={runtimeConfig.finalizingLoadingAriaLabel} />;
   }
 
-  return (
-    <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white p-3 text-center">
-      <div>
-        <div className="fw-semibold" style={{ fontSize: "1.25rem" }}>
-          Nepodarilo sa dokončiť kategóriu
-        </div>
-        <div className="text-muted small">{err}</div>
-      </div>
-    </div>
-  );
+  return <FullscreenStatus title={runtimeConfig.finalizeErrorTitle} subtitle={errorMessage} />;
 }
 
 export default withAuth(CategoryTestingController);

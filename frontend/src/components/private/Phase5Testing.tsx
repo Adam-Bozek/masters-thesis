@@ -1,11 +1,17 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import axiosInstance from "@/utilities/AxiosInstance";
 import withAuth from "@/utilities/WithAuth";
+import { phase5RuntimeConfig as sharedPhase5RuntimeConfig } from "./componentRuntimeConfigs";
+
+/* -------------------------------------------------------------------------------------------------
+ * Types
+ * -----------------------------------------------------------------------------------------------*/
 
 type StorageType = "local_storage" | "database";
+type DisplayType = "insert" | "add" | "remove" | "remove_last_and_add" | "remove_all_and_add";
 
 type Answer = {
   answerId: number;
@@ -19,7 +25,7 @@ type SceneConfigTimeline = {
   pictures: Array<{
     path: string;
     display_time: string | number;
-    display_type: "insert" | "add" | "remove" | "remove_last_and_add" | "remove_all_and_add";
+    display_type: DisplayType;
   }>;
 };
 
@@ -35,95 +41,188 @@ type BaseQuestion = {
   acceptedTranscripts: string[];
 };
 
-type Question =
-  | (BaseQuestion & { questionType: 1; answers: Answer[] })
-  | (BaseQuestion & { questionType: 2; questionText2: string; questionAudioPath2: string; answers: Answer[] })
-  | (BaseQuestion & { questionType: 3; config: SceneConfigTimeline | SceneConfigSingle })
-  | (BaseQuestion & { questionType: 4; imagePath: string });
+type QuestionType1 = BaseQuestion & {
+  questionType: 1;
+  answers: Answer[];
+};
+
+type QuestionType2 = BaseQuestion & {
+  questionType: 2;
+  questionText2: string;
+  questionAudioPath2: string;
+  answers: Answer[];
+};
+
+type QuestionType3 = BaseQuestion & {
+  questionType: 3;
+  config: SceneConfigTimeline | SceneConfigSingle;
+};
+
+type QuestionType4 = BaseQuestion & {
+  questionType: 4;
+  imagePath: string;
+};
+
+type Question = QuestionType1 | QuestionType2 | QuestionType3 | QuestionType4;
 
 type SavePayload = {
   category_id: number;
   question_number: number;
-  answer_state: string; // "2" correct, "3" incorrect
+  answer_state: string;
   user_answer?: string | null;
-  // selected_answer_id?: number;
+};
+
+type Phase5RuntimeConfig = {
+  imageFadeDurationMs: number;
+  compactGridMaxAnswers: number;
+  answerGridGapClass: string;
+  answerCardBorderRadiusPx: number;
+  answerImageMinHeight: string;
 };
 
 type Props = {
-  wrongQuestions: Question[]; // input from Phase 3 (wrong only)
+  wrongQuestions: Question[];
   categoryId: number;
   storageType: StorageType;
-
-  // required for DB mode
   sessionId?: number;
-  answersPath?: (sessionId: number) => string; // default below
-
+  answersPath?: (sessionId: number) => string;
   debug?: boolean;
+  config?: Partial<Phase5RuntimeConfig>;
   onComplete?: () => void;
 };
 
-const defaultAnswersPath = (id: number) => `/sessions/${id}/answers`;
+/* -------------------------------------------------------------------------------------------------
+ * Config
+ * -----------------------------------------------------------------------------------------------*/
 
-// always-random (no seed, no persistence)
-function cryptoRandInt(maxExclusive: number): number {
+const DEFAULT_ANSWERS_PATH = (sessionId: number) => `/sessions/${sessionId}/answers`;
+
+const DEFAULT_PHASE5_CONFIG: Phase5RuntimeConfig = sharedPhase5RuntimeConfig;
+
+const PHASE5_LOCAL_STORAGE_KEYS = {
+  answered: "answered",
+  results: "results",
+} as const;
+
+/* -------------------------------------------------------------------------------------------------
+ * Helpers
+ * -----------------------------------------------------------------------------------------------*/
+
+function getCryptoRandomInt(maxExclusive: number): number {
   if (maxExclusive <= 1) return 0;
-  const cryptoObj = globalThis.crypto;
-  if (!cryptoObj?.getRandomValues) return Math.floor(Math.random() * maxExclusive);
 
-  const range = 0xffffffff;
-  const limit = Math.floor(range / maxExclusive) * maxExclusive;
-  const buf = new Uint32Array(1);
+  const cryptoApi = globalThis.crypto;
+  if (!cryptoApi?.getRandomValues) {
+    return Math.floor(Math.random() * maxExclusive);
+  }
+
+  const maxUint32 = 0xffffffff;
+  const acceptedRange = Math.floor(maxUint32 / maxExclusive) * maxExclusive;
+  const buffer = new Uint32Array(1);
+
   while (true) {
-    cryptoObj.getRandomValues(buf);
-    const x = buf[0] >>> 0;
-    if (x < limit) return x % maxExclusive;
+    cryptoApi.getRandomValues(buffer);
+    const candidate = buffer[0] >>> 0;
+    if (candidate < acceptedRange) {
+      return candidate % maxExclusive;
+    }
   }
 }
 
-function shuffleRandom<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = cryptoRandInt(i + 1);
-    [a[i], a[j]] = [a[j], a[i]];
+function shuffleArray<T>(items: T[]): T[] {
+  const next = [...items];
+
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const randomIndex = getCryptoRandomInt(index + 1);
+    [next[index], next[randomIndex]] = [next[randomIndex], next[index]];
   }
-  return a;
+
+  return next;
 }
 
-function getPromptText(q: Question): string {
-  return q.questionType === 2 ? q.questionText2 : q.questionText;
+function dedupeQuestionsById(questions: Question[]): Question[] {
+  const seenIds = new Set<number>();
+  const uniqueQuestions: Question[] = [];
+
+  for (const question of questions ?? []) {
+    if (!question || typeof question.questionId !== "number") continue;
+    if (seenIds.has(question.questionId)) continue;
+
+    seenIds.add(question.questionId);
+    uniqueQuestions.push(question);
+  }
+
+  return uniqueQuestions;
 }
 
-function getAudioSrc(q: Question): string {
-  if (q.questionType === 2) return q.questionAudioPath2;
-  if (q.questionType === 3) {
-    const c: any = q.config;
-    if (typeof c?.sound_path === "string" && c.sound_path) return c.sound_path;
-  }
-  return q.questionAudioPath;
+function buildStorageScopeKey(categoryId: number): string {
+  return `phase5:${categoryId}`;
 }
 
-function dedupeByQuestionId(list: Question[]): Question[] {
-  const seen = new Set<number>();
-  const out: Question[] = [];
-  for (const q of list ?? []) {
-    if (!q || typeof (q as any).questionId !== "number") continue;
-    if (seen.has(q.questionId)) continue;
-    seen.add(q.questionId);
-    out.push(q);
-  }
-  return out;
+function buildStorageKey(scopeKey: string, key: (typeof PHASE5_LOCAL_STORAGE_KEYS)[keyof typeof PHASE5_LOCAL_STORAGE_KEYS]): string {
+  return `${scopeKey}:${key}`;
 }
+
+function getPromptText(question: Question): string {
+  return question.questionType === 2 ? question.questionText2 : question.questionText;
+}
+
+function getAudioSource(question: Question): string {
+  if (question.questionType === 2) {
+    return question.questionAudioPath2;
+  }
+
+  if (question.questionType === 3) {
+    return question.config.sound_path || question.questionAudioPath;
+  }
+
+  return question.questionAudioPath;
+}
+
+function readAnsweredIdsFromLocalStorage(scopeKey: string): Set<number> {
+  const raw = localStorage.getItem(buildStorageKey(scopeKey, PHASE5_LOCAL_STORAGE_KEYS.answered));
+  return raw ? new Set<number>(JSON.parse(raw)) : new Set<number>();
+}
+
+function persistAnsweredIdsToLocalStorage(scopeKey: string, answeredIds: Set<number>): void {
+  localStorage.setItem(buildStorageKey(scopeKey, PHASE5_LOCAL_STORAGE_KEYS.answered), JSON.stringify(Array.from(answeredIds)));
+}
+
+function persistResultToLocalStorage(scopeKey: string, payload: SavePayload): void {
+  const resultsKey = buildStorageKey(scopeKey, PHASE5_LOCAL_STORAGE_KEYS.results);
+  const previous = localStorage.getItem(resultsKey);
+  const storedResults = previous ? JSON.parse(previous) : {};
+
+  storedResults[String(payload.question_number)] = {
+    ...payload,
+    saved_at: new Date().toISOString(),
+  };
+
+  localStorage.setItem(resultsKey, JSON.stringify(storedResults));
+}
+
+function padAnswersToFullRows(answers: Answer[], columns: number): Array<Answer | null> {
+  const remainder = answers.length % columns;
+  const placeholdersNeeded = remainder === 0 ? 0 : columns - remainder;
+  return [...answers, ...Array(placeholdersNeeded).fill(null)] as Array<Answer | null>;
+}
+
+/* -------------------------------------------------------------------------------------------------
+ * Presentational components
+ * -----------------------------------------------------------------------------------------------*/
 
 function LoadingImageFill({
   src,
   alt,
   sizes,
+  fadeDurationMs,
   style,
   priority,
 }: {
   src: string;
   alt: string;
   sizes: string;
+  fadeDurationMs: number;
   style?: React.CSSProperties;
   priority?: boolean;
 }) {
@@ -152,248 +251,263 @@ function LoadingImageFill({
         style={{
           ...(style ?? {}),
           opacity: loaded ? 1 : 0,
-          transition: "opacity 120ms ease",
+          transition: `opacity ${fadeDurationMs}ms ease`,
         }}
       />
     </>
   );
 }
 
-function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, answersPath, debug = false, onComplete }: Props) {
-  const useLocal = storageType === "local_storage";
-  const useDb = storageType === "database";
+/* -------------------------------------------------------------------------------------------------
+ * Component
+ * -----------------------------------------------------------------------------------------------*/
 
-  // DB-only means DB-only (no other storage side effects)
-  const scopeKey = useMemo(() => `phase5:${categoryId}`, [categoryId]);
-  const localAnsweredKey = `${scopeKey}:answered`;
-  const localResultsKey = `${scopeKey}:results`;
+function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, answersPath, debug = false, config, onComplete }: Props) {
+  const runtimeConfig = useMemo(
+    () => ({
+      ...DEFAULT_PHASE5_CONFIG,
+      ...(config ?? {}),
+    }),
+    [config],
+  );
+
+  const useLocalStorage = storageType === "local_storage";
+  const useDatabase = storageType === "database";
+  const localScopeKey = useMemo(() => buildStorageScopeKey(categoryId), [categoryId]);
 
   const [loading, setLoading] = useState(true);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [order, setOrder] = useState<number[]>([]);
+  const [questionOrder, setQuestionOrder] = useState<number[]>([]);
   const [answeredIds, setAnsweredIds] = useState<Set<number>>(new Set());
   const [activeIndex, setActiveIndex] = useState(0);
   const [saveBusy, setSaveBusy] = useState(false);
-
-  // per-question shuffled answers (stable during the question)
-  const [shuffledAnswers, setShuffledAnswers] = useState<Record<number, Answer[]>>({});
+  const [shuffledAnswersByQuestionId, setShuffledAnswersByQuestionId] = useState<Record<number, Answer[]>>({});
+  const [audioPlaying, setAudioPlaying] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-
-  const total = questions.length;
-  const answeredCount = answeredIds.size;
-  const progressPct = total ? Math.round((answeredCount / total) * 100) : 0;
 
   const orderedQuestions = useMemo(() => {
-    const byId = new Map(questions.map((q) => [q.questionId, q]));
-    return order.map((id) => byId.get(id)).filter(Boolean) as Question[];
-  }, [questions, order]);
+    const questionById = new Map(questions.map((question) => [question.questionId, question]));
+    return questionOrder.map((questionId) => questionById.get(questionId)).filter(Boolean) as Question[];
+  }, [questionOrder, questions]);
 
-  const remaining = useMemo(() => orderedQuestions.filter((q) => !answeredIds.has(q.questionId)), [orderedQuestions, answeredIds]);
+  const remainingQuestions = useMemo(
+    () => orderedQuestions.filter((question) => !answeredIds.has(question.questionId)),
+    [answeredIds, orderedQuestions],
+  );
 
-  const activeQ = remaining[activeIndex] ?? null;
+  const activeQuestion = remainingQuestions[activeIndex] ?? null;
+  const totalQuestions = questions.length;
+  const answeredCount = answeredIds.size;
+  const progressPercent = totalQuestions ? Math.round((answeredCount / totalQuestions) * 100) : 0;
+  const canNavigate = !saveBusy;
 
-  useEffect(() => {
-    if (activeIndex >= remaining.length) setActiveIndex(Math.max(0, remaining.length - 1));
-  }, [remaining.length, activeIndex]);
+  const togglePlayPause = useCallback(async () => {
+    const audioElement = audioRef.current;
+    if (!audioElement) return;
 
-  // Load from props, randomize order ALWAYS
-  useEffect(() => {
-    setLoading(true);
-    try {
-      const base = dedupeByQuestionId(wrongQuestions);
-      const ids = base.map((q) => q.questionId);
-      const randomizedOrder = shuffleRandom(ids);
-
-      setQuestions(base);
-      setOrder(randomizedOrder);
-
-      // shuffle answers for each question once
-      const answerMap: Record<number, Answer[]> = {};
-      for (const q of base) {
-        if (q.questionType === 1 || q.questionType === 2) {
-          answerMap[q.questionId] = shuffleRandom(q.answers ?? []);
+    if (audioElement.paused) {
+      try {
+        await audioElement.play();
+      } catch (caughtError) {
+        if (debug) {
+          console.debug("[Phase5] Audio playback was blocked until a user gesture", caughtError);
         }
       }
-      setShuffledAnswers(answerMap);
+      return;
+    }
 
-      if (useLocal) {
-        const rawAnswered = localStorage.getItem(localAnsweredKey);
-        const answered = rawAnswered ? new Set<number>(JSON.parse(rawAnswered)) : new Set<number>();
-        setAnsweredIds(answered);
+    audioElement.pause();
+  }, [debug]);
+
+  const replayAudio = useCallback(async () => {
+    const audioElement = audioRef.current;
+    if (!audioElement) return;
+
+    audioElement.pause();
+    audioElement.currentTime = 0;
+    setAudioPlaying(false);
+
+    try {
+      await audioElement.play();
+    } catch (caughtError) {
+      if (debug) {
+        console.debug("[Phase5] Audio playback was blocked until a user gesture", caughtError);
+      }
+    }
+  }, [debug]);
+
+  const saveResultToDatabase = useCallback(
+    async (payload: SavePayload) => {
+      if (!sessionId) {
+        throw new Error("Chýba sessionId");
+      }
+
+      const saveUrl = (answersPath ?? DEFAULT_ANSWERS_PATH)(sessionId);
+      await axiosInstance.post(saveUrl, payload);
+    },
+    [answersPath, sessionId],
+  );
+
+  const finalizeAnswer = useCallback(
+    async (question: QuestionType1 | QuestionType2, selectedAnswer: Answer) => {
+      if (saveBusy) return;
+
+      const isCorrect = Boolean(selectedAnswer.isCorrect);
+      const payload: SavePayload = {
+        category_id: categoryId,
+        question_number: question.questionId,
+        answer_state: isCorrect ? "2" : "3",
+        user_answer: (question as Question & { phase3_user_answer?: string }).phase3_user_answer ?? null,
+      };
+
+      setSaveBusy(true);
+
+      try {
+        if (useLocalStorage) {
+          persistResultToLocalStorage(localScopeKey, payload);
+        } else {
+          await saveResultToDatabase(payload);
+        }
+
+        const nextAnsweredIds = new Set(answeredIds);
+        nextAnsweredIds.add(question.questionId);
+
+        setAnsweredIds(nextAnsweredIds);
+        if (useLocalStorage) {
+          persistAnsweredIdsToLocalStorage(localScopeKey, nextAnsweredIds);
+        }
+
+        const remainingAfterCurrent = remainingQuestions.length - 1;
+        if (remainingAfterCurrent <= 0) {
+          onComplete?.();
+        } else {
+          setActiveIndex((currentIndex) => Math.min(currentIndex, remainingAfterCurrent - 1));
+        }
+      } catch (caughtError) {
+        console.error("[Phase5] Saving the answer failed", caughtError);
+      } finally {
+        setSaveBusy(false);
+      }
+    },
+    [answeredIds, categoryId, localScopeKey, onComplete, remainingQuestions.length, saveBusy, saveResultToDatabase, useLocalStorage],
+  );
+
+  useEffect(() => {
+    setLoading(true);
+
+    try {
+      const uniqueQuestions = dedupeQuestionsById(wrongQuestions);
+      const randomizedQuestionOrder = shuffleArray(uniqueQuestions.map((question) => question.questionId));
+      const answersByQuestionId: Record<number, Answer[]> = {};
+
+      for (const question of uniqueQuestions) {
+        if (question.questionType === 1 || question.questionType === 2) {
+          answersByQuestionId[question.questionId] = shuffleArray(question.answers ?? []);
+        }
+      }
+
+      setQuestions(uniqueQuestions);
+      setQuestionOrder(randomizedQuestionOrder);
+      setShuffledAnswersByQuestionId(answersByQuestionId);
+
+      if (useLocalStorage) {
+        setAnsweredIds(readAnsweredIdsFromLocalStorage(localScopeKey));
       } else {
         setAnsweredIds(new Set());
       }
 
       setActiveIndex(0);
-    } catch (e) {
-      console.error("[Phase5] zlyhalo načítanie vstupných otázok", e);
+    } catch (caughtError) {
+      console.error("[Phase5] Loading input questions failed", caughtError);
       setQuestions([]);
-      setOrder([]);
-      setShuffledAnswers({});
+      setQuestionOrder([]);
+      setShuffledAnswersByQuestionId({});
       setAnsweredIds(new Set());
       setActiveIndex(0);
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wrongQuestions, categoryId, storageType]);
+  }, [localScopeKey, useLocalStorage, wrongQuestions]);
 
-  // DB hydration (DB-only: no localStorage usage)
   useEffect(() => {
-    if (!useDb) return;
-    if (!sessionId) return;
-    if (!questions.length) return;
+    if (!useDatabase || !sessionId || !questions.length) {
+      return;
+    }
 
-    (async () => {
-      const url = (answersPath ?? defaultAnswersPath)(sessionId);
-      const res = await axiosInstance.get(url);
-      const raw = res?.data;
-      const rows = Array.isArray(raw) ? raw : Array.isArray(raw?.answers) ? raw.answers : [];
+    const hydrateFromDatabase = async () => {
+      const readUrl = (answersPath ?? DEFAULT_ANSWERS_PATH)(sessionId);
+      const response = await axiosInstance.get(readUrl);
+      const rawData = response?.data;
+      const rows = Array.isArray(rawData) ? rawData : Array.isArray(rawData?.answers) ? rawData.answers : [];
+      const relevantQuestionIds = new Set(questions.map((question) => question.questionId));
+      const nextAnsweredIds = new Set<number>();
 
-      const baseIds = new Set(questions.map((q) => q.questionId));
-      const nextAnswered = new Set<number>();
+      for (const row of rows) {
+        if (Number(row?.category_id) !== Number(categoryId)) continue;
 
-      for (const r of rows) {
-        if (Number(r?.category_id) !== Number(categoryId)) continue;
-        const qn = Number(r?.question_number);
-        if (!Number.isFinite(qn)) continue;
-        if (!baseIds.has(qn)) continue;
+        const questionNumber = Number(row?.question_number);
+        if (!Number.isFinite(questionNumber)) continue;
+        if (!relevantQuestionIds.has(questionNumber)) continue;
 
-        // In Phase 5 we always save correct/incorrect, so any row means answered.
-        nextAnswered.add(qn);
+        nextAnsweredIds.add(questionNumber);
       }
 
-      setAnsweredIds(nextAnswered);
+      setAnsweredIds(nextAnsweredIds);
       setActiveIndex(0);
-    })().catch((e) => console.error("[Phase5] zlyhala hydratácia", e));
-  }, [useDb, sessionId, categoryId, answersPath, questions]);
+    };
 
-  // Audio play-state tracking
+    hydrateFromDatabase().catch((caughtError) => {
+      console.error("[Phase5] Database hydration failed", caughtError);
+    });
+  }, [answersPath, categoryId, questions, sessionId, useDatabase]);
+
   useEffect(() => {
-    const a = audioRef.current;
-    if (!a) return;
+    if (activeIndex < remainingQuestions.length) return;
+    setActiveIndex(Math.max(0, remainingQuestions.length - 1));
+  }, [activeIndex, remainingQuestions.length]);
 
-    const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
-    const onEnded = () => setIsPlaying(false);
+  useEffect(() => {
+    const audioElement = audioRef.current;
+    if (!audioElement) return;
 
-    a.addEventListener("play", onPlay);
-    a.addEventListener("pause", onPause);
-    a.addEventListener("ended", onEnded);
+    const handlePlay = () => setAudioPlaying(true);
+    const handlePause = () => setAudioPlaying(false);
+    const handleEnded = () => setAudioPlaying(false);
+
+    audioElement.addEventListener("play", handlePlay);
+    audioElement.addEventListener("pause", handlePause);
+    audioElement.addEventListener("ended", handleEnded);
 
     return () => {
-      a.removeEventListener("play", onPlay);
-      a.removeEventListener("pause", onPause);
-      a.removeEventListener("ended", onEnded);
+      audioElement.removeEventListener("play", handlePlay);
+      audioElement.removeEventListener("pause", handlePause);
+      audioElement.removeEventListener("ended", handleEnded);
     };
-  }, [activeQ?.questionId]);
+  }, [activeQuestion?.questionId]);
 
-  // Reset audio when question changes
   useEffect(() => {
-    const a = audioRef.current;
-    if (!a) return;
-    a.pause();
-    a.currentTime = 0;
-    setIsPlaying(false);
-  }, [activeQ?.questionId]);
+    const audioElement = audioRef.current;
+    if (!audioElement) return;
 
-  const togglePlayPause = async () => {
-    const a = audioRef.current;
-    if (!a) return;
-    if (a.paused) {
-      try {
-        await a.play();
-      } catch (e) {
-        if (debug) console.debug("[Phase5] prehrávanie zablokované (gesto)", e);
-      }
-    } else {
-      a.pause();
-    }
-  };
+    audioElement.pause();
+    audioElement.currentTime = 0;
+    setAudioPlaying(false);
+  }, [activeQuestion?.questionId]);
 
-  const replayAudio = async () => {
-    const a = audioRef.current;
-    if (!a) return;
-    a.pause();
-    a.currentTime = 0;
-    setIsPlaying(false);
-    try {
-      await a.play();
-    } catch (e) {
-      if (debug) console.debug("[Phase5] prehrávanie zablokované (gesto)", e);
-    }
-  };
-
-  const saveLocal = (payload: SavePayload) => {
-    const raw = localStorage.getItem(localResultsKey);
-    const obj = raw ? JSON.parse(raw) : {};
-    obj[String(payload.question_number)] = { ...payload, saved_at: new Date().toISOString() };
-    localStorage.setItem(localResultsKey, JSON.stringify(obj));
-  };
-
-  const saveDb = async (payload: SavePayload) => {
-    if (!sessionId) throw new Error("Chýba sessionId");
-    const url = (answersPath ?? defaultAnswersPath)(sessionId);
-    await axiosInstance.post(url, payload);
-  };
-
-  const persistAnsweredLocal = (nextAnswered: Set<number>) => {
-    if (!useLocal) return;
-    localStorage.setItem(localAnsweredKey, JSON.stringify(Array.from(nextAnswered)));
-  };
-
-  const finalizeAnswer = async (q: Question, chosen: Answer) => {
-    if (saveBusy) return;
-    const correct = !!chosen.isCorrect;
-
-    // carry over what the user said/typed in Phase 3 (for this question)
-    const phase3UserAnswer = (q as any)?.phase3_user_answer ?? null;
-
-    const payload: SavePayload = {
-      category_id: categoryId,
-      question_number: q.questionId,
-      answer_state: correct ? "2" : "3",
-      user_answer: phase3UserAnswer,
-      // selected_answer_id: chosen.answerId,
-    };
-
-    setSaveBusy(true);
-    try {
-      if (useLocal) saveLocal(payload);
-      else await saveDb(payload);
-
-      const nextAnswered = new Set(answeredIds);
-      nextAnswered.add(q.questionId);
-      setAnsweredIds(nextAnswered);
-      persistAnsweredLocal(nextAnswered);
-
-      const nextRemaining = remaining.length - 1;
-      if (nextRemaining <= 0) onComplete?.();
-      else setActiveIndex((i) => Math.min(i, nextRemaining - 1));
-    } catch (e) {
-      console.error("[Phase5] zlyhalo ukladanie", e);
-    } finally {
-      setSaveBusy(false);
-    }
-  };
-
-  const canNavigate = !saveBusy;
-
-  const goPrev = () => {
+  const goToPreviousQuestion = () => {
     if (!canNavigate) return;
-    setActiveIndex((i) => Math.max(0, i - 1));
+    setActiveIndex((currentIndex) => Math.max(0, currentIndex - 1));
   };
 
-  const goNext = () => {
+  const goToNextQuestion = () => {
     if (!canNavigate) return;
-    setActiveIndex((i) => Math.min(remaining.length - 1, i + 1));
+    setActiveIndex((currentIndex) => Math.min(remainingQuestions.length - 1, currentIndex + 1));
   };
 
-  const btn = (variant: "primary" | "outline-primary" | "outline-secondary") => `btn btn-${variant} rounded-pill px-3`;
+  const buttonClassName = (variant: "primary" | "outline-primary" | "outline-secondary") => `btn btn-${variant} rounded-pill px-3`;
 
-  if (useDb && !sessionId) {
+  if (useDatabase && !sessionId) {
     return (
       <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white p-3 text-center">
         <div>
@@ -414,7 +528,7 @@ function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, ans
     );
   }
 
-  if (!total) {
+  if (!totalQuestions) {
     return (
       <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white p-3 text-center">
         <div>
@@ -426,83 +540,71 @@ function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, ans
     );
   }
 
-  if (!activeQ) {
+  if (!activeQuestion) {
     return (
       <div className="position-fixed top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-white p-3 text-center">
         <div className="fw-semibold" style={{ fontSize: "1.25rem" }}>
           Dokončené
         </div>
         <div className="text-muted small">
-          Zodpovedané: {answeredCount}/{total}
+          Zodpovedané: {answeredCount}/{totalQuestions}
         </div>
       </div>
     );
   }
 
-  // Phase 5 expects answers-image selection; if not 1/2, show a hard stop card.
-  if (!(activeQ.questionType === 1 || activeQ.questionType === 2)) {
+  if (!(activeQuestion.questionType === 1 || activeQuestion.questionType === 2)) {
     return (
       <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white p-3 text-center">
         <div>
           <div className="fw-semibold" style={{ fontSize: "1.25rem" }}>
             Nepodporovaný typ otázky vo fáze 5
           </div>
-          <div className="text-muted small">questionType: {activeQ.questionType}</div>
+          <div className="text-muted small">questionType: {activeQuestion.questionType}</div>
         </div>
       </div>
     );
   }
 
-  const promptText = getPromptText(activeQ);
-  const audioSrc = getAudioSrc(activeQ);
-
-  // NOTE: do NOT use hooks (useMemo) after conditional returns above.
-  // Keep this as plain computation to avoid React hook-order crashes.
-  const answersForUi = shuffledAnswers[activeQ.questionId] ?? activeQ.answers;
-
-  // Keep a stable grid: 6 answers -> 3 + 3, 4 answers -> 2 + 2.
-  // If the last row is incomplete, fill it with invisible placeholders.
-  const cols = answersForUi.length <= 4 ? 2 : 3;
-  const mod = answersForUi.length % cols;
-  const missing = mod === 0 ? 0 : cols - mod;
-  const paddedAnswers = [...answersForUi, ...Array(missing).fill(null)] as Array<Answer | null>;
-
-  const rowColsClass = cols === 2 ? "row row-cols-2 g-2 g-sm-3" : "row row-cols-2 row-cols-sm-3 g-2 g-sm-3";
-  const cardPadding = "clamp(6px, 1.1vw, 10px)";
-  const imgBoxHeight = "clamp(92px, 22vh, 280px)";
+  const promptText = getPromptText(activeQuestion);
+  const audioSource = getAudioSource(activeQuestion);
+  const answersForUi = shuffledAnswersByQuestionId[activeQuestion.questionId] ?? activeQuestion.answers;
+  const columns = answersForUi.length <= runtimeConfig.compactGridMaxAnswers ? 2 : 3;
+  const paddedAnswers = padAnswersToFullRows(answersForUi, columns);
+  const answerGridClassName =
+    columns === 2 ? `row row-cols-2 ${runtimeConfig.answerGridGapClass}` : `row row-cols-2 row-cols-sm-3 ${runtimeConfig.answerGridGapClass}`;
+  const answerCardPadding = "clamp(6px, 1.1vw, 10px)";
 
   return (
     <div className="position-fixed top-0 start-0 w-100 h-100 bg-white" style={{ overflow: "hidden" }}>
-      {/* progress */}
       <div className="w-100 px-2" style={{ paddingTop: 6 }}>
         <div className="d-flex align-items-center gap-2">
           <div className="progress flex-grow-1" style={{ height: 8, borderRadius: 999 }}>
             <div
               className="progress-bar"
               role="progressbar"
-              style={{ width: `${progressPct}%` }}
-              aria-valuenow={progressPct}
+              style={{ width: `${progressPercent}%` }}
+              aria-valuenow={progressPercent}
               aria-valuemin={0}
               aria-valuemax={100}
             />
           </div>
           <div className="small text-muted" style={{ minWidth: 72, textAlign: "right" }}>
-            {answeredCount}/{total}
+            {answeredCount}/{totalQuestions}
           </div>
         </div>
       </div>
 
-      <audio ref={audioRef} src={audioSrc} preload="auto" style={{ display: "none" }} />
+      <audio ref={audioRef} src={audioSource} preload="auto" style={{ display: "none" }} />
 
       <div
         className="w-100 h-100"
         style={{
-          paddingBottom: `calc(env(safe-area-inset-bottom) + 34px)`,
+          paddingBottom: "calc(env(safe-area-inset-bottom) + 34px)",
           display: "flex",
           flexDirection: "column",
         }}
       >
-        {/* header */}
         <div className="w-100 px-2" style={{ paddingTop: 10, paddingBottom: 6 }}>
           <div className="d-flex align-items-center justify-content-center" style={{ maxWidth: 1280, margin: "0 auto" }}>
             <div className="d-flex align-items-center justify-content-between w-100" style={{ gap: 12, flexWrap: "wrap" }}>
@@ -511,12 +613,12 @@ function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, ans
               </div>
 
               <div className="d-flex gap-2 justify-content-center" style={{ flex: "0 0 auto" }}>
-                <button type="button" className={btn("outline-primary")} onClick={() => void togglePlayPause()} disabled={saveBusy}>
-                  <i className={`bi ${isPlaying ? "bi-pause-fill" : "bi-play-fill"} me-2`} />
-                  {isPlaying ? "Pauza" : "Prehrať"}
+                <button type="button" className={buttonClassName("outline-primary")} onClick={() => void togglePlayPause()} disabled={saveBusy}>
+                  <i className={`bi ${audioPlaying ? "bi-pause-fill" : "bi-play-fill"} me-2`} />
+                  {audioPlaying ? "Pauza" : "Prehrať"}
                 </button>
 
-                <button type="button" className={btn("outline-secondary")} onClick={() => void replayAudio()} disabled={saveBusy}>
+                <button type="button" className={buttonClassName("outline-secondary")} onClick={() => void replayAudio()} disabled={saveBusy}>
                   <i className="bi bi-arrow-counterclockwise me-2" />
                   Znova
                 </button>
@@ -525,13 +627,11 @@ function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, ans
           </div>
         </div>
 
-        {/* answers grid */}
         <div className="w-100 flex-grow-1" style={{ position: "relative" }}>
-          {/* nav arrows */}
           <button
             type="button"
             aria-label="Predchádzajúca"
-            onClick={goPrev}
+            onClick={goToPreviousQuestion}
             disabled={!canNavigate || activeIndex <= 0}
             className="btn btn-light"
             style={{
@@ -555,8 +655,8 @@ function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, ans
           <button
             type="button"
             aria-label="Nasledujúca"
-            onClick={goNext}
-            disabled={!canNavigate || activeIndex >= remaining.length - 1}
+            onClick={goToNextQuestion}
+            disabled={!canNavigate || activeIndex >= remainingQuestions.length - 1}
             className="btn btn-light"
             style={{
               position: "absolute",
@@ -569,7 +669,7 @@ function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, ans
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              opacity: activeIndex >= remaining.length - 1 || !canNavigate ? 0.35 : 0.9,
+              opacity: activeIndex >= remainingQuestions.length - 1 || !canNavigate ? 0.35 : 0.9,
               zIndex: 20,
             }}
           >
@@ -578,14 +678,19 @@ function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, ans
 
           <div className="w-100 h-100 d-flex align-items-center justify-content-center" style={{ maxWidth: 1440, margin: "0 auto" }}>
             <div className="container-fluid" style={{ maxWidth: 1280 }}>
-              <div className={rowColsClass}>
-                {paddedAnswers.map((a, idx) => {
-                  if (!a) {
-                    // placeholder to keep the last row aligned
+              <div className={answerGridClassName}>
+                {paddedAnswers.map((answer, index) => {
+                  if (!answer) {
                     return (
-                      <div className="col" key={`ph-${idx}`} style={{ visibility: "hidden" }}>
-                        <div style={{ borderRadius: 14, padding: 10, border: "1px solid rgba(0,0,0,0.12)" }}>
-                          <div style={{ position: "relative", width: "100%", height: imgBoxHeight }} />
+                      <div className="col" key={`placeholder-${index}`} style={{ visibility: "hidden" }}>
+                        <div
+                          style={{
+                            borderRadius: runtimeConfig.answerCardBorderRadiusPx,
+                            padding: 10,
+                            border: "1px solid rgba(0,0,0,0.12)",
+                          }}
+                        >
+                          <div style={{ position: "relative", width: "100%", height: runtimeConfig.answerImageMinHeight }} />
                           <div className="mt-2" style={{ height: 22 }} />
                         </div>
                       </div>
@@ -593,24 +698,33 @@ function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, ans
                   }
 
                   return (
-                    <div className="col" key={a.answerId}>
+                    <div className="col" key={answer.answerId}>
                       <button
                         type="button"
                         disabled={saveBusy}
-                        onClick={() => void finalizeAnswer(activeQ, a)}
+                        onClick={() => void finalizeAnswer(activeQuestion, answer)}
                         className="w-100 text-start"
                         style={{
                           border: "1px solid rgba(0,0,0,0.12)",
                           background: "white",
-                          borderRadius: 14,
-                          padding: cardPadding,
+                          borderRadius: runtimeConfig.answerCardBorderRadiusPx,
+                          padding: answerCardPadding,
                         }}
                       >
-                        <div style={{ position: "relative", width: "100%", height: imgBoxHeight, borderRadius: 10, overflow: "hidden" }}>
+                        <div
+                          style={{
+                            position: "relative",
+                            width: "100%",
+                            height: runtimeConfig.answerImageMinHeight,
+                            borderRadius: 10,
+                            overflow: "hidden",
+                          }}
+                        >
                           <LoadingImageFill
-                            src={a.imagePath}
-                            alt={a.label ?? ""}
+                            src={answer.imagePath}
+                            alt={answer.label ?? ""}
                             sizes="(max-width: 768px) 45vw, (max-width: 1200px) 28vw, 22vw"
+                            fadeDurationMs={runtimeConfig.imageFadeDurationMs}
                             style={{ objectFit: "contain" }}
                           />
                         </div>
@@ -621,7 +735,7 @@ function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, ans
               </div>
 
               <div className="text-center text-muted small mt-3">
-                Otázka {Math.min(activeIndex + 1, remaining.length)}/{remaining.length}
+                Otázka {Math.min(activeIndex + 1, remainingQuestions.length)}/{remainingQuestions.length}
               </div>
             </div>
           </div>
