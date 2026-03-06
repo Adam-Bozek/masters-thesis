@@ -1,8 +1,11 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
+
+import axiosInstance from "./AxiosInstance";
 
 interface User {
   id: number;
@@ -21,29 +24,44 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const extractApiMessage = (error: unknown, fallback: string): string => {
+  if (axios.isAxiosError(error)) {
+    const message = error.response?.data?.message;
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+  }
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return fallback;
+};
+
+const clearClientAuth = () => {
+  if (typeof window === "undefined") return;
+
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
+  delete axiosInstance.defaults.headers.common["Authorization"];
+};
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const router = useRouter();
 
   const mapMeToUser = (data: unknown): User => {
     if (typeof data !== "object" || data === null) {
-      throw new Error("Invalid /me response (not an object)");
+      throw new Error("Server vrátil neplatné údaje o používateľovi.");
     }
 
     const d = data as Record<string, unknown>;
-
     const { id, first_name, last_name, email } = d;
 
-    if (
-      typeof id !== "number" ||
-      typeof first_name !== "string" ||
-      typeof last_name !== "string" ||
-      typeof email !== "string"
-    ) {
-      throw new Error("Invalid /me response shape");
+    if (typeof id !== "number" || typeof first_name !== "string" || typeof last_name !== "string" || typeof email !== "string") {
+      throw new Error("Server vrátil neplatný formát údajov používateľa.");
     }
 
     return {
@@ -55,46 +73,51 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const login = async (email: string, password: string) => {
-    const { data } = await axios.post(`${API_URL}/login`, { email, password });
+    try {
+      const { data } = await axiosInstance.post("/login", { email, password });
 
-    // 1) Save tokens
-    localStorage.setItem("accessToken", data.access_token);
-    localStorage.setItem("refreshToken", data.refresh_token);
+      const accessToken = data?.access_token;
+      const refreshToken = data?.refresh_token;
 
-    // 2) Set Authorization header for future requests
-    axios.defaults.headers.common["Authorization"] = `Bearer ${data.access_token}`;
+      if (typeof accessToken !== "string" || typeof refreshToken !== "string") {
+        throw new Error("Server vrátil neplatnú odpoveď pri prihlasovaní.");
+      }
 
-    // 3) Fetch user via /me
-    const meRes = await axios.get(`${API_URL}/me`);
-    const me = meRes.data;
+      localStorage.setItem("accessToken", accessToken);
+      localStorage.setItem("refreshToken", refreshToken);
+      axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
 
-    setUser(mapMeToUser(me));
+      const meRes = await axiosInstance.get("/me");
+      setUser(mapMeToUser(meRes.data));
 
-    router.push("/dashboard");
+      router.push("/dashboard");
+    } catch (error: unknown) {
+      throw new Error(extractApiMessage(error, "Prihlásenie zlyhalo. Skúste znova."));
+    }
   };
 
   const register = async (firstName: string, lastName: string, email: string, password: string) => {
-    await axios.post(`${API_URL}/register`, {
-      first_name: firstName,
-      last_name: lastName,
-      email,
-      password,
-    });
+    try {
+      await axiosInstance.post("/register", {
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        password,
+      });
 
-    router.push("/");
+      router.push("/");
+    } catch (error: unknown) {
+      throw new Error(extractApiMessage(error, "Registrácia zlyhala. Skúste znova."));
+    }
   };
 
   const logout = useCallback(async () => {
     try {
-      // This will send the current Authorization header with the access token
-      await axios.post(`${API_URL}/logout`);
-    } catch (err) {
-      console.error("Logout API failed, clearing local auth anyway. Error:", err);
+      await axiosInstance.post("/logout");
+    } catch (error) {
+      console.error("Volanie odhlásenia zlyhalo, lokálne údaje sa aj tak vymažú.", error);
     } finally {
-      // Clear auth on client no matter what
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      delete axios.defaults.headers.common["Authorization"];
+      clearClientAuth();
       setUser(null);
       router.push("/");
     }
@@ -109,29 +132,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      axios.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+      axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
 
       try {
-        const meRes = await axios.get(`${API_URL}/me`);
+        const meRes = await axiosInstance.get("/me");
         setUser(mapMeToUser(meRes.data));
-      } catch (err) {
-        console.error("Initial /me failed, logging out. Error:", err);
-        logout();
+      } catch (error) {
+        console.error("Načítanie používateľa zlyhalo, lokálne prihlásenie sa vymaže.", error);
+        clearClientAuth();
+        setUser(null);
+        router.replace("/");
       } finally {
         setLoading(false);
       }
     };
 
     initAuth();
-  }, [logout]);
+  }, [router]);
 
   return <AuthContext.Provider value={{ user, login, register, logout, loading }}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
+
   if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error("useAuth musí byť použitý v rámci AuthProvider.");
   }
+
   return context;
 };

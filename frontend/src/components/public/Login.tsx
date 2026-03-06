@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "../../utilities/AuthContext";
 import type { Dispatch, SetStateAction } from "react";
 
+import { useAuth } from "../../utilities/AuthContext";
 import styles from "@/components/css/home.module.css";
 
 type Mode = "login" | "register" | "info" | "demo" | "runWithoutRegister";
@@ -23,11 +23,12 @@ export default function Login({ setMode }: Props) {
     e.preventDefault();
     setErr(null);
     setPending(true);
+
     try {
       await login(email.trim(), password);
-    } catch (e: unknown) {
-      if (e instanceof Error) {
-        setErr(e.message ?? "Prihlásenie zlyhalo. Skúste znova.");
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.trim()) {
+        setErr(error.message);
       } else {
         setErr("Prihlásenie zlyhalo. Skúste znova.");
       }
@@ -80,12 +81,12 @@ export default function Login({ setMode }: Props) {
         )}
 
         <button type="submit" className={`${styles.segBtn} ${styles.active} w-75 rounded-4`} disabled={pending}>
-          {pending ? "Prebieha…" : "Prihlásiť sa"}
+          {pending ? "Prihlasujem..." : "Prihlásiť sa"}
         </button>
       </form>
 
       <p className="mt-3 small">
-        Nemáte účet? {""}
+        Nemáte účet?{" "}
         <button className={styles.linkBtn} onClick={() => setMode("register")}>
           Zaregistrujte sa
         </button>

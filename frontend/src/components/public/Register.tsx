@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "../../utilities/AuthContext";
 import type { Dispatch, SetStateAction } from "react";
 
+import { useAuth } from "../../utilities/AuthContext";
 import styles from "@/components/css/home.module.css";
 
 type Mode = "login" | "register" | "info" | "demo" | "runWithoutRegister";
@@ -36,9 +36,9 @@ export default function Register({ setMode }: Props) {
     try {
       await register(firstName.trim(), lastName.trim(), email.trim(), password);
       setMode("login");
-    } catch (e: unknown) {
-      if (e instanceof Error) {
-        setErr(e.message);
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.trim()) {
+        setErr(error.message);
       } else {
         setErr("Registrácia zlyhala. Skúste znova.");
       }
@@ -129,7 +129,7 @@ export default function Register({ setMode }: Props) {
         )}
 
         <button type="submit" className={`${styles.segBtn} ${styles.active} w-75 rounded-4`} disabled={pending}>
-          {pending ? "Prebieha…" : "Vytvoriť účet"}
+          {pending ? "Registrujem..." : "Vytvoriť účet"}
         </button>
       </form>
 

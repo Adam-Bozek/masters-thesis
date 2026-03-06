@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { useAuth } from "./AuthContext";
 import { useRouter } from "next/navigation";
+
+import { useAuth } from "./AuthContext";
 
 type WithAuthProps = Record<string, unknown>;
 
@@ -12,10 +13,13 @@ const withAuth = <P extends WithAuthProps>(Wrapped: React.ComponentType<P>) => {
     const router = useRouter();
 
     useEffect(() => {
-      if (!loading && !user) router.replace("/");
+      if (!loading && !user) {
+        router.replace("/");
+      }
     }, [loading, user, router]);
 
-    if (loading) return <p>Loading...</p>;
+    if (loading) return <p>Načítavam...</p>;
+
     return user ? <Wrapped {...props} /> : null;
   };
 
