@@ -35,11 +35,17 @@ def create_session():
 
     new_session = UserTestSession(user_id=uid)
     db.session.add(new_session)
-    db.session.flush()  # zabezpečí dostupnosť new_session.id
+    db.session.flush()
 
     categories = TestCategory.query.order_by(TestCategory.id).all()
     for category in categories:
-        db.session.add(SessionTestCategory(session_id=new_session.id, category_id=category.id))
+        db.session.add(
+            SessionTestCategory(
+                session_id=new_session.id,
+                category_id=category.id,
+                was_corrected=False,
+            )
+        )
 
     db.session.commit()
 
@@ -131,7 +137,7 @@ def list_session_categories(session_id: int):
                 "question_count": category.question_count,
                 "started_at": (session_category.started_at.isoformat() if session_category.started_at else None),
                 "completed_at": (session_category.completed_at.isoformat() if session_category.completed_at else None),
-                "was_corrected": session_category.was_corrected,
+                "was_corrected": bool(session_category.was_corrected),
             }
         )
 
@@ -143,6 +149,8 @@ def complete_category(session_id: int, category_id: int):
     """
     Označí kategóriu ako dokončenú pre konkrétnu reláciu
     (nastaví completed_at na SessionTestCategory).
+    Pri dokončení sa kategória vždy považuje za neskontrolovanú,
+    kým ju manuálne nepotvrdí endpoint /correct.
     """
     uid = int(get_jwt_identity())
 
@@ -168,6 +176,7 @@ def complete_category(session_id: int, category_id: int):
         return jsonify({"message": "Kategória už bola dokončená"}), 400
 
     session_category.completed_at = datetime.utcnow()
+    session_category.was_corrected = False
     db.session.commit()
 
     return jsonify(
@@ -175,6 +184,7 @@ def complete_category(session_id: int, category_id: int):
             "message": "Kategória bola dokončená",
             "category_id": session_category.category_id,
             "completed_at": session_category.completed_at.isoformat(),
+            "was_corrected": session_category.was_corrected,
         }
     ), 200
 
@@ -237,6 +247,9 @@ def add_or_update_answer(session_id: int):
                 user_answer=user_answer,
             )
         )
+
+    # Každá nová alebo upravená odpoveď ruší predchádzajúci stav kontroly.
+    session_category.was_corrected = False
 
     db.session.commit()
     return jsonify({"message": "Odpoveď bola uložená"}), 200

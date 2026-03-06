@@ -47,7 +47,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   Parent_answerd: "Odpovede rodiča",
 };
 
-// Required completion order (locked)
 const CATEGORY_ORDER = ["Marketplace", "Mountains", "Zoo", "Street", "Home"] as const;
 
 const normalizeName = (s: string) => s.trim().toLowerCase();
@@ -198,7 +197,6 @@ const DashboardPage = () => {
     }
   };
 
-  // Fetch ALL categories on page load (after sessions are loaded)
   useEffect(() => {
     if (loadingSessions || sessionsError) return;
     if (sessions.length === 0) return;
@@ -217,43 +215,14 @@ const DashboardPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadingSessions, sessionsError, sessions, categoriesState]);
 
-  const handleCorrectCategory = async (sessionId: number, categoryId: number) => {
-    try {
-      await axiosInstance.patch(`/sessions/${sessionId}/categories/${categoryId}/correct`);
+  const handleOpenCorrection = (sessionId: number, categoryId: number, categoryName: string) => {
+    const slug = toCategorySlug(categoryName);
 
-      setCategoriesState((prev) => {
-        const sessionState = prev[sessionId];
-        if (!sessionState?.data) return prev;
-
-        return {
-          ...prev,
-          [sessionId]: {
-            ...sessionState,
-            data: sessionState.data.map((cat) => (cat.id === categoryId ? { ...cat, was_corrected: true } : cat)),
-          },
-        };
-      });
-    } catch (err: unknown) {
-      const message = getErrorMessage(err, "Nepodarilo sa označiť kategóriu ako skontrolovanú.");
-
-      setCategoriesState((prev) => {
-        const sessionState =
-          prev[sessionId] ??
-          ({
-            data: null,
-            loading: false,
-            error: null,
-          } as CategoriesState[number]);
-
-        return {
-          ...prev,
-          [sessionId]: {
-            ...sessionState,
-            error: message,
-          },
-        };
-      });
-    }
+    router.push(
+      `/dashboard/correct/${encodeURIComponent(slug)}?sessionId=${encodeURIComponent(
+        String(sessionId),
+      )}&categoryId=${encodeURIComponent(String(categoryId))}`,
+    );
   };
 
   const handleStartCategory = (sessionId: number, categoryName: string) => {
@@ -279,7 +248,7 @@ const DashboardPage = () => {
       const cats = categoriesState[s.id]?.data ?? null;
       const totalCats = cats?.length ?? 0;
       const completedCats = cats ? cats.filter((c) => !!c.completed_at).length : 0;
-      const progress = totalCats > 0 ? completedCats / totalCats : -1; // -1 = unknown yet
+      const progress = totalCats > 0 ? completedCats / totalCats : -1;
       return {
         ...s,
         _ts: safeTs(s.started_at),
@@ -308,7 +277,6 @@ const DashboardPage = () => {
     const sorted = [...queryFiltered].sort((a, b) => {
       if (sortMode === "oldest") return a._ts - b._ts;
       if (sortMode === "progress") {
-        // known progress first, then highest progress, then newest
         const ap = a._progress;
         const bp = b._progress;
         const aKnown = ap >= 0 ? 1 : 0;
@@ -317,7 +285,6 @@ const DashboardPage = () => {
         if (ap !== bp) return bp - ap;
         return b._ts - a._ts;
       }
-      // newest
       return b._ts - a._ts;
     });
 
@@ -340,7 +307,6 @@ const DashboardPage = () => {
                 </div>
               </div>
 
-              {/* Filter bar */}
               <div className={styles.filterBar}>
                 <div className={styles.filterPills}>
                   <button
@@ -427,7 +393,7 @@ const DashboardPage = () => {
 
               const catState = categoriesState[session.id];
               const categories = catState?.data ?? [];
-              const catsLoading = catState?.loading ?? true; // true until fetched
+              const catsLoading = catState?.loading ?? true;
               const catsError = catState?.error ?? null;
               const hasCategories = categories.length > 0;
 
@@ -636,7 +602,7 @@ const DashboardPage = () => {
                                         type="button"
                                         className="btn btn-outline-secondary btn-sm"
                                         disabled={!isCategoryCompleted || isCorrected}
-                                        onClick={() => handleCorrectCategory(session.id, category.id)}
+                                        onClick={() => handleOpenCorrection(session.id, category.id, category.name)}
                                       >
                                         {isCorrected ? "Skontrolovaná" : "Opraviť"}
                                       </button>
