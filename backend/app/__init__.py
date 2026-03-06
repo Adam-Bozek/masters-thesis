@@ -10,6 +10,8 @@ from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from redis import Redis
 
+from flask import jsonify
+
 from .config import Config
 
 """
@@ -144,6 +146,26 @@ def create_app() -> Flask:
             # See "Fail-OPEN rationale" above
             current_app.logger.warning("Blocklist check skipped (Redis issue): %r", e)
             return False
+
+    @jwt.expired_token_loader
+    def expired_token_callback(jwt_header, jwt_payload):
+        return jsonify({"message": "Relácia vypršala. Prihláste sa znova."}), 401
+
+    @jwt.invalid_token_loader
+    def invalid_token_callback(error):
+        return jsonify({"message": "Neplatný token."}), 401
+
+    @jwt.unauthorized_loader
+    def unauthorized_callback(error):
+        return jsonify({"message": "Chýba autorizácia."}), 401
+
+    @jwt.revoked_token_loader
+    def revoked_token_callback(jwt_header, jwt_payload):
+        return jsonify({"message": "Token bol zrušený."}), 401
+
+    @jwt.needs_fresh_token_loader
+    def needs_fresh_token_callback(jwt_header, jwt_payload):
+        return jsonify({"message": "Táto akcia vyžaduje nové prihlásenie."}), 401
 
     # ---- Register blueprints ----
     from .routes_config import auth_bp

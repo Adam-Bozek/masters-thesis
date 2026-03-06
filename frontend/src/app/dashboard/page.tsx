@@ -258,7 +258,6 @@ const DashboardPage = () => {
 
   const handleStartCategory = (sessionId: number, categoryName: string) => {
     const slug = toCategorySlug(categoryName);
-    if (slug === "marketplace") return; // Marketplace starts via "Nová hra"
     router.push(`/testing/${encodeURIComponent(slug)}?sessionId=${encodeURIComponent(String(sessionId))}`);
   };
 
@@ -484,7 +483,9 @@ const DashboardPage = () => {
 
                                 {!isCompleted && (
                                   <div className="small text-muted">
-                                    <span className="fw-semibold">Ďalšia kategória:</span>{" "}
+                                    <span className="fw-semibold">
+                                      {orderedAllDone ? "Všetky povinné kategórie sú dokončené." : getLabelFromNorm(nextRequiredNorm ?? "")}
+                                    </span>
                                     {orderedAllDone
                                       ? "Všetky povinné kategórie sú dokončené."
                                       : nextRequiredNorm === "marketplace"
@@ -549,7 +550,9 @@ const DashboardPage = () => {
                                 <strong>Poradie:</strong> {getOrderDisplay()}
                               </div>
                               <div className="small mt-1">
-                                <strong>Ďalšia kategória:</strong>{" "}
+                                <strong>
+                                  {orderedAllDone ? "Všetky povinné kategórie sú dokončené." : getLabelFromNorm(nextRequiredNorm ?? "")}
+                                </strong>
                                 {orderedAllDone
                                   ? "Všetky povinné kategórie sú dokončené."
                                   : nextRequiredNorm === "marketplace"
@@ -574,19 +577,21 @@ const DashboardPage = () => {
 
                                 const nextIsThis = !orderedAllDone && nextRequiredNorm === norm;
 
-                                const isAllowedToStart = orderedAllDone
-                                  ? !isMarketplace
-                                  : isOrderedCategory && nextRequiredNorm === norm && !isMarketplace;
+                                const isAllowedToStart = orderedAllDone ? !isCategoryCompleted : isOrderedCategory && nextRequiredNorm === norm;
 
                                 const startDisabledReason = (() => {
                                   if (isCategoryCompleted) return "Kategória je už dokončená.";
+
                                   if (!orderedAllDone) {
-                                    if (!isOrderedCategory) return `Najprv dokončite povinné kategórie v poradí: ${getOrderDisplay()}.`;
-                                    if (nextRequiredNorm && norm !== nextRequiredNorm)
+                                    if (!isOrderedCategory) {
+                                      return `Najprv dokončite povinné kategórie v poradí: ${getOrderDisplay()}.`;
+                                    }
+
+                                    if (nextRequiredNorm && norm !== nextRequiredNorm) {
                                       return `Najprv dokončite: ${getLabelFromNorm(nextRequiredNorm)}.`;
-                                    if (isMarketplace) return "Obchod sa spúšťa cez „Nová hra“.";
+                                    }
                                   }
-                                  if (isMarketplace) return "Obchod sa spúšťa cez „Nová hra“.";
+
                                   return "";
                                 })();
 

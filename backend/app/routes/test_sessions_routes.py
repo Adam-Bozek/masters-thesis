@@ -1,30 +1,32 @@
 from __future__ import annotations
+
 from datetime import datetime
+
 from flask import jsonify, request
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from .. import db
 from ..models import (
-    User,
-    UserTestSession,
-    UserTestAnswer,
+    SessionTestCategory,
     TestCategory,
-    SessionTestCategory,  # NEW
+    User,
+    UserTestAnswer,
+    UserTestSession,
 )
 
 
-# ---- Helpers ----
+# ---- Pomocné funkcie ----
 def _assert_user_or_404(uid: int) -> User | tuple:
     user = User.query.get(uid)
     if not user:
-        return jsonify({"message": "User not found"}), 404
+        return jsonify({"message": "Používateľ nebol nájdený"}), 404
     return user
 
 
-# ---- Routes ----
+# ---- Routy ----
 @jwt_required()
 def create_session():
-    """Start a new test session for the current user and attach categories."""
+    """Vytvorí novú testovaciu reláciu pre aktuálneho používateľa a priradí kategórie."""
     uid = int(get_jwt_identity())
     user = _assert_user_or_404(uid)
 
@@ -33,18 +35,17 @@ def create_session():
 
     new_session = UserTestSession(user_id=uid)
     db.session.add(new_session)
-    db.session.flush()  # ensure new_session.id is available
+    db.session.flush()  # zabezpečí dostupnosť new_session.id
 
-    # Create one SessionTestCategory per static category for this session
     categories = TestCategory.query.order_by(TestCategory.id).all()
-    for c in categories:
-        db.session.add(SessionTestCategory(session_id=new_session.id, category_id=c.id))
+    for category in categories:
+        db.session.add(SessionTestCategory(session_id=new_session.id, category_id=category.id))
 
     db.session.commit()
 
     return jsonify(
         {
-            "message": "Session created",
+            "message": "Relácia bola vytvorená",
             "session_id": new_session.id,
             "started_at": new_session.started_at.isoformat(),
         }
@@ -53,35 +54,38 @@ def create_session():
 
 @jwt_required()
 def list_sessions():
-    """List all test sessions for the current user."""
+    """Vráti všetky testovacie relácie aktuálneho používateľa."""
     uid = int(get_jwt_identity())
     sessions = UserTestSession.query.filter_by(user_id=uid).order_by(UserTestSession.started_at.desc()).all()
+
     return jsonify(
         [
             {
-                "id": s.id,
-                "started_at": s.started_at.isoformat(),
-                "completed_at": s.completed_at.isoformat() if s.completed_at else None,
+                "id": session.id,
+                "started_at": session.started_at.isoformat(),
+                "completed_at": (session.completed_at.isoformat() if session.completed_at else None),
             }
-            for s in sessions
+            for session in sessions
         ]
     ), 200
 
 
 @jwt_required()
 def get_session(session_id: int):
-    """Return one test session (with basic answer stats)."""
+    """Vráti jednu testovaciu reláciu vrátane základných štatistík odpovedí."""
     uid = int(get_jwt_identity())
     session = UserTestSession.query.filter_by(id=session_id, user_id=uid).first()
+
     if not session:
-        return jsonify({"message": "Session not found"}), 404
+        return jsonify({"message": "Relácia nebola nájdená"}), 404
 
     answer_count = len(session.answers)
+
     return jsonify(
         {
             "id": session.id,
             "started_at": session.started_at.isoformat(),
-            "completed_at": session.completed_at.isoformat() if session.completed_at else None,
+            "completed_at": (session.completed_at.isoformat() if session.completed_at else None),
             "answers_count": answer_count,
         }
     ), 200
@@ -89,42 +93,45 @@ def get_session(session_id: int):
 
 @jwt_required()
 def complete_session(session_id: int):
-    """Mark a session as completed."""
+    """Označí reláciu ako dokončenú."""
     uid = int(get_jwt_identity())
     session = UserTestSession.query.filter_by(id=session_id, user_id=uid).first()
+
     if not session:
-        return jsonify({"message": "Session not found"}), 404
+        return jsonify({"message": "Relácia nebola nájdená"}), 404
+
     if session.completed_at:
-        return jsonify({"message": "Session already completed"}), 400
+        return jsonify({"message": "Relácia už bola dokončená"}), 400
 
     session.completed_at = datetime.utcnow()
     db.session.commit()
-    return jsonify({"message": "Session completed"}), 200
+
+    return jsonify({"message": "Relácia bola dokončená"}), 200
 
 
 @jwt_required()
 def list_session_categories(session_id: int):
     """
-    List all categories for a given session, including per-session state
+    Vráti všetky kategórie danej relácie vrátane stavov pre reláciu
     (started_at, completed_at, was_corrected).
     """
     uid = int(get_jwt_identity())
     session = UserTestSession.query.filter_by(id=session_id, user_id=uid).first()
-    if not session:
-        return jsonify({"message": "Session not found"}), 404
 
-    # We created one SessionTestCategory per TestCategory in create_session()
+    if not session:
+        return jsonify({"message": "Relácia nebola nájdená"}), 404
+
     result = []
-    for sc in session.session_categories:  # relationship on UserTestSession
-        c = sc.category  # static TestCategory
+    for session_category in session.session_categories:
+        category = session_category.category
         result.append(
             {
-                "id": c.id,
-                "name": c.name,
-                "question_count": c.question_count,
-                "started_at": sc.started_at.isoformat() if sc.started_at else None,
-                "completed_at": sc.completed_at.isoformat() if sc.completed_at else None,
-                "was_corrected": sc.was_corrected,
+                "id": category.id,
+                "name": category.name,
+                "question_count": category.question_count,
+                "started_at": (session_category.started_at.isoformat() if session_category.started_at else None),
+                "completed_at": (session_category.completed_at.isoformat() if session_category.completed_at else None),
+                "was_corrected": session_category.was_corrected,
             }
         )
 
@@ -134,50 +141,55 @@ def list_session_categories(session_id: int):
 @jwt_required()
 def complete_category(session_id: int, category_id: int):
     """
-    Mark a category as completed for this specific session
-    (sets completed_at on SessionTestCategory).
+    Označí kategóriu ako dokončenú pre konkrétnu reláciu
+    (nastaví completed_at na SessionTestCategory).
     """
     uid = int(get_jwt_identity())
 
-    # Ensure the session belongs to the current user
     session = UserTestSession.query.filter_by(id=session_id, user_id=uid).first()
     if not session:
-        return jsonify({"message": "Session not found"}), 404
+        return jsonify({"message": "Relácia nebola nájdená"}), 404
 
-    # Per-session category row
-    sc = SessionTestCategory.query.filter_by(session_id=session.id, category_id=category_id).first()
-    if not sc:
-        return jsonify({"message": "Category not part of this session"}), 404
+    session_category = SessionTestCategory.query.filter_by(
+        session_id=session.id,
+        category_id=category_id,
+    ).first()
+    if not session_category:
+        return jsonify({"message": "Kategória nie je súčasťou tejto relácie"}), 404
 
-    # Optional: only allow completion if at least one answer exists in this category
-    has_answer = UserTestAnswer.query.filter_by(session_id=session.id, category_id=category_id).first()
+    has_answer = UserTestAnswer.query.filter_by(
+        session_id=session.id,
+        category_id=category_id,
+    ).first()
     if not has_answer:
-        return jsonify({"message": "No answers for this category in this session"}), 400
+        return jsonify({"message": "V tejto kategórii nie sú žiadne odpovede"}), 400
 
-    if sc.completed_at:
-        return jsonify({"message": "Category already completed"}), 400
+    if session_category.completed_at:
+        return jsonify({"message": "Kategória už bola dokončená"}), 400
 
-    sc.completed_at = datetime.utcnow()
+    session_category.completed_at = datetime.utcnow()
     db.session.commit()
 
     return jsonify(
         {
-            "message": "Category completed",
-            "category_id": sc.category_id,
-            "completed_at": sc.completed_at.isoformat(),
+            "message": "Kategória bola dokončená",
+            "category_id": session_category.category_id,
+            "completed_at": session_category.completed_at.isoformat(),
         }
     ), 200
 
 
 @jwt_required()
 def add_or_update_answer(session_id: int):
-    """Add or update one answer (idempotent upsert)."""
+    """Pridá alebo aktualizuje jednu odpoveď."""
     uid = int(get_jwt_identity())
     session = UserTestSession.query.filter_by(id=session_id, user_id=uid).first()
+
     if not session:
-        return jsonify({"message": "Session not found"}), 404
+        return jsonify({"message": "Relácia nebola nájdená"}), 404
+
     if session.completed_at:
-        return jsonify({"message": "Session already completed"}), 400
+        return jsonify({"message": "Relácia už bola dokončená"}), 400
 
     data = request.get_json(silent=True) or {}
 
@@ -186,23 +198,24 @@ def add_or_update_answer(session_id: int):
         question_number = int(data["question_number"])
         answer_state = str(data["answer_state"])
     except (KeyError, TypeError, ValueError):
-        return jsonify({"message": "Invalid or missing required fields"}), 400
+        return jsonify({"message": "Neplatné alebo chýbajúce povinné údaje"}), 400
 
     user_answer = data.get("user_answer")
 
-    # Ensure this category is part of this session
-    sc = SessionTestCategory.query.filter_by(session_id=session.id, category_id=category_id).first()
-    if not sc:
-        return jsonify({"message": "Category not part of this session"}), 400
+    session_category = SessionTestCategory.query.filter_by(
+        session_id=session.id,
+        category_id=category_id,
+    ).first()
+    if not session_category:
+        return jsonify({"message": "Kategória nie je súčasťou tejto relácie"}), 400
 
-    category = sc.category  # static category with question_count, name, etc.
+    category = session_category.category
 
     if not (1 <= question_number <= category.question_count):
-        return jsonify({"message": "Invalid question number"}), 400
+        return jsonify({"message": "Neplatné číslo otázky"}), 400
 
-    # Optionally set started_at on first answer
-    if sc.started_at is None:
-        sc.started_at = datetime.utcnow()
+    if session_category.started_at is None:
+        session_category.started_at = datetime.utcnow()
 
     existing = UserTestAnswer.query.filter_by(
         session_id=session.id,
@@ -226,63 +239,62 @@ def add_or_update_answer(session_id: int):
         )
 
     db.session.commit()
-    return jsonify({"message": "Answer saved"}), 200
+    return jsonify({"message": "Odpoveď bola uložená"}), 200
 
 
 @jwt_required()
 def list_answers(session_id: int):
-    """List all answers for a given session."""
+    """Vráti všetky odpovede pre danú reláciu."""
     uid = int(get_jwt_identity())
     session = UserTestSession.query.filter_by(id=session_id, user_id=uid).first()
+
     if not session:
-        return jsonify({"message": "Session not found"}), 404
+        return jsonify({"message": "Relácia nebola nájdená"}), 404
 
     answers = [
         {
-            "id": a.id,
-            "category_id": a.category_id,
-            "question_number": a.question_number,
-            "answer_state": a.answer_state,
-            "user_answer": a.user_answer,
-            "answered_at": a.answered_at.isoformat() if a.answered_at else None,
+            "id": answer.id,
+            "category_id": answer.category_id,
+            "question_number": answer.question_number,
+            "answer_state": answer.answer_state,
+            "user_answer": answer.user_answer,
+            "answered_at": answer.answered_at.isoformat() if answer.answered_at else None,
         }
-        for a in session.answers
+        for answer in session.answers
     ]
+
     return jsonify(answers), 200
 
 
 @jwt_required()
 def correct_category(session_id: int, category_id: int):
     """
-    Mark a category as 'corrected' for this specific session
-    (sets was_corrected = True on SessionTestCategory).
+    Označí kategóriu ako opravenú pre konkrétnu reláciu
+    (nastaví was_corrected = True na SessionTestCategory).
     """
     uid = int(get_jwt_identity())
 
-    # Ensure the session belongs to the current user
     session = UserTestSession.query.filter_by(id=session_id, user_id=uid).first()
     if not session:
-        return jsonify({"message": "Session not found"}), 404
+        return jsonify({"message": "Relácia nebola nájdená"}), 404
 
-    # Find the per-session category row
-    sc = SessionTestCategory.query.filter_by(session_id=session.id, category_id=category_id).first()
-    if not sc:
-        return jsonify({"message": "Category not part of this session"}), 404
+    session_category = SessionTestCategory.query.filter_by(
+        session_id=session.id,
+        category_id=category_id,
+    ).first()
+    if not session_category:
+        return jsonify({"message": "Kategória nie je súčasťou tejto relácie"}), 404
 
-    # Optional: require category to be completed before correction
-    # if not sc.completed_at:
-    #     return jsonify({"message": "Category not completed yet"}), 400
+    if session_category.was_corrected:
+        return jsonify({"message": "Kategória už bola opravená"}), 400
 
-    if sc.was_corrected:
-        return jsonify({"message": "Category already corrected"}), 400
-
-    sc.was_corrected = True
+    session_category.was_corrected = True
     db.session.commit()
 
     return jsonify(
         {
-            "message": "Category corrected",
-            "category_id": sc.category_id,
-            "was_corrected": sc.was_corrected,
+            "message": "Kategória bola opravená",
+            "category_id": session_category.category_id,
+            "was_corrected": session_category.was_corrected,
         }
     ), 200

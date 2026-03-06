@@ -18,11 +18,10 @@ from ..redis_utils import revoke_jti_with_ttl
 # ---- Helpers ----
 def _assert_token_version_or_401(user: User, token_ver: int | None):
     if token_ver is None or user.token_version != token_ver:
-        return jsonify({"message": "Token no longer valid"}), 401
+        return jsonify({"message": "Token už nie je platný"}), 401
     return None
 
 
-# ---- Routes ----
 def register():
     data = request.get_json(silent=True) or {}
     first_name = (data.get("first_name") or "").strip()
@@ -31,10 +30,10 @@ def register():
     password = data.get("password") or ""
 
     if not (first_name and last_name and email and password):
-        return jsonify({"message": "Missing required fields"}), 400
+        return jsonify({"message": "Chýbajú povinné údaje"}), 400
 
     if User.query.filter_by(email=email).first():
-        return jsonify({"message": "User already exists"}), 400
+        return jsonify({"message": "Používateľ už existuje"}), 400
 
     hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
 
@@ -42,13 +41,12 @@ def register():
         first_name=first_name,
         last_name=last_name,
         email=email,
-        password=hashed_password,  # store hash
-        # token_version defaults to 1
+        password=hashed_password,
     )
     db.session.add(new_user)
     db.session.commit()
 
-    return jsonify({"message": "User registered successfully"}), 201
+    return jsonify({"message": "Registrácia bola úspešná"}), 201
 
 
 def login():
@@ -57,11 +55,11 @@ def login():
     password = data.get("password") or ""
 
     if not (email and password):
-        return jsonify({"message": "Missing email or password"}), 400
+        return jsonify({"message": "Chýba email alebo heslo"}), 400
 
     user = User.query.filter_by(email=email).first()
     if not user or not bcrypt.check_password_hash(user.password, password):
-        return jsonify({"message": "Invalid email or password"}), 401
+        return jsonify({"message": "Zlý email alebo heslo"}), 401
 
     claims = {"ver": user.token_version}
 
@@ -79,7 +77,7 @@ def login():
 
     return jsonify(
         {
-            "message": "Login successful",
+            "message": "Prihlásenie bolo úspešné",
             "access_token": access_token,
             "refresh_token": refresh_token,
         }
@@ -89,12 +87,12 @@ def login():
 @jwt_required(refresh=True)
 def refresh():
     jwt_payload = get_jwt()
-    uid = get_jwt_identity()  # stored as str
+    uid = get_jwt_identity()
     ver = jwt_payload.get("ver")
 
     user = User.query.get(int(uid))
     if not user:
-        return jsonify({"message": "User not found"}), 404
+        return jsonify({"message": "Používateľ nebol nájdený"}), 404
 
     mismatch = _assert_token_version_or_401(user, ver)
     if mismatch:
@@ -113,14 +111,14 @@ def refresh():
 def logout():
     payload = get_jwt()
     revoke_jti_with_ttl(jti=payload["jti"], exp_ts=payload["exp"])
-    return jsonify({"message": "Logged out"}), 200
+    return jsonify({"message": "Odhlásenie bolo úspešné"}), 200
 
 
 @jwt_required(refresh=True)
 def logout_refresh():
     payload = get_jwt()
     revoke_jti_with_ttl(jti=payload["jti"], exp_ts=payload["exp"])
-    return jsonify({"message": "Refresh token revoked"}), 200
+    return jsonify({"message": "Obnovovací token bol zrušený"}), 200
 
 
 @jwt_required()
@@ -131,7 +129,7 @@ def logout_all():
 
     user = User.query.get(uid)
     if not user:
-        return jsonify({"message": "User not found"}), 404
+        return jsonify({"message": "Používateľ nebol nájdený"}), 404
 
     mismatch = _assert_token_version_or_401(user, ver)
     if mismatch:
@@ -139,7 +137,7 @@ def logout_all():
 
     user.token_version += 1
     db.session.commit()
-    return jsonify({"message": "All sessions revoked"}), 200
+    return jsonify({"message": "Všetky relácie boli odhlásené"}), 200
 
 
 @jwt_required()
@@ -149,7 +147,7 @@ def me():
 
     user = User.query.get(uid)
     if not user:
-        return jsonify({"message": "User not found"}), 404
+        return jsonify({"message": "Používateľ nebol nájdený"}), 404
 
     mismatch = _assert_token_version_or_401(user, token_ver)
     if mismatch:
@@ -167,4 +165,4 @@ def me():
 
 @jwt_required()
 def test_route():
-    return jsonify({"message": "This is a test route"}), 200
+    return jsonify({"message": "Toto je testovacia ruta"}), 200
