@@ -27,6 +27,7 @@ from .routes.test_sessions_routes import (
     list_session_categories,
     complete_category,
     correct_category,
+    export_session_pdf,
 )
 
 auth_bp = Blueprint("auth", __name__)
@@ -52,6 +53,7 @@ test_bp.route("/sessions/<int:session_id>/answers", methods=["GET"])(list_answer
 test_bp.route("/sessions/<int:session_id>/categories", methods=["GET"])(list_session_categories)
 test_bp.route("/sessions/<int:session_id>/categories/<int:category_id>/complete", methods=["PATCH"])(complete_category)
 test_bp.route("/sessions/<int:session_id>/categories/<int:category_id>/correct", methods=["PATCH"])(correct_category)
+test_bp.route("/sessions/export-pdf", methods=["POST"])(export_session_pdf)
 
 
 # ---- Health routes ----

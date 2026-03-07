@@ -59,8 +59,8 @@ services:
     container_name: backend
     restart: unless-stopped
     build:
-      context: ./backend
-      dockerfile: backend.dockerfile
+      context: .
+      dockerfile: backend/backend.dockerfile
     depends_on:
       database:
         condition: service_healthy

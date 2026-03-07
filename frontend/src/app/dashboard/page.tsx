@@ -35,6 +35,18 @@ type CategoriesState = {
   };
 };
 
+type ExportState = {
+  loading: boolean;
+  error: string | null;
+};
+
+type MeResponse = {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+};
+
 type SessionFilter = "all" | "active" | "completed";
 type SortMode = "newest" | "oldest" | "progress";
 
@@ -100,6 +112,43 @@ const formatDurationMinutes = (startIso: string | null, endIso: string | null) =
 const translateCategoryName = (categoryName: string) => CATEGORY_LABELS[categoryName] ?? "Zlý názov kategórie";
 const toCategorySlug = (categoryName: string) => categoryName.trim().toLowerCase();
 
+const getDownloadFilename = (headerValue: unknown, fallback: string) => {
+  if (typeof headerValue !== "string" || !headerValue.trim()) return fallback;
+
+  const utfMatch = headerValue.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utfMatch?.[1]) {
+    try {
+      return decodeURIComponent(utfMatch[1]);
+    } catch {
+      return utfMatch[1];
+    }
+  }
+
+  const quotedMatch = headerValue.match(/filename="([^"]+)"/i);
+  if (quotedMatch?.[1]) return quotedMatch[1];
+
+  const plainMatch = headerValue.match(/filename=([^;]+)/i);
+  if (plainMatch?.[1]) return plainMatch[1].trim();
+
+  return fallback;
+};
+
+const getBlobErrorMessage = async (blob: Blob, fallback: string): Promise<string> => {
+  try {
+    const raw = await blob.text();
+    if (!raw.trim()) return fallback;
+
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && "message" in parsed && typeof (parsed as { message?: unknown }).message === "string") {
+      return (parsed as { message: string }).message;
+    }
+
+    return raw;
+  } catch {
+    return fallback;
+  }
+};
+
 type StatusPillProps = {
   variant: "active" | "done" | "info";
   children: ReactNode;
@@ -134,6 +183,9 @@ const safeTs = (iso: string | null) => {
 const DashboardPage = () => {
   const router = useRouter();
 
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [loadingCurrentUser, setLoadingCurrentUser] = useState(true);
+
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [sessionsError, setSessionsError] = useState<string | null>(null);
@@ -145,7 +197,24 @@ const DashboardPage = () => {
   const [query, setQuery] = useState("");
 
   const [categoriesState, setCategoriesState] = useState<CategoriesState>({});
+  const [pdfExportState, setPdfExportState] = useState<Record<number, ExportState>>({});
   const inFlightCategories = useRef<Set<number>>(new Set());
+
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        setLoadingCurrentUser(true);
+        const res = await axiosInstance.get<MeResponse>("/me");
+        setCurrentUserId(res.data.id);
+      } catch {
+        setCurrentUserId(null);
+      } finally {
+        setLoadingCurrentUser(false);
+      }
+    };
+
+    void fetchCurrentUser();
+  }, []);
 
   useEffect(() => {
     const fetchSessions = async () => {
@@ -232,6 +301,84 @@ const DashboardPage = () => {
 
   const handleToggleSession = (sessionId: number) => {
     setExpandedSessionId((prev) => (prev === sessionId ? null : sessionId));
+  };
+
+  const handleDownloadPdf = async (sessionId: number) => {
+    if (currentUserId === null) {
+      setPdfExportState((prev) => ({
+        ...prev,
+        [sessionId]: {
+          loading: false,
+          error: "Nepodarilo sa získať používateľa pre export PDF.",
+        },
+      }));
+      return;
+    }
+
+    setPdfExportState((prev) => ({
+      ...prev,
+      [sessionId]: {
+        loading: true,
+        error: null,
+      },
+    }));
+
+    try {
+      const response = await axiosInstance.post<Blob>(
+        "/sessions/export-pdf",
+        {
+          user_id: currentUserId,
+          session_id: sessionId,
+          form_data: {},
+        },
+        {
+          responseType: "blob",
+        },
+      );
+
+      const contentType = String(response.headers["content-type"] ?? "");
+      const contentDisposition = response.headers["content-disposition"];
+      const fallbackFilename = `testovanie_${sessionId}.pdf`;
+
+      if (contentType.includes("application/json") && response.data instanceof Blob) {
+        throw new Error(await getBlobErrorMessage(response.data, "Nepodarilo sa vygenerovať PDF."));
+      }
+
+      const blob = response.data instanceof Blob ? response.data : new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = getDownloadFilename(contentDisposition, fallbackFilename);
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(url);
+
+      setPdfExportState((prev) => ({
+        ...prev,
+        [sessionId]: {
+          loading: false,
+          error: null,
+        },
+      }));
+    } catch (err: unknown) {
+      let message = getErrorMessage(err, "Nepodarilo sa stiahnuť PDF.");
+
+      if (typeof err === "object" && err !== null && "response" in err && typeof (err as { response?: { data?: unknown } }).response === "object") {
+        const responseData = (err as { response?: { data?: unknown } }).response?.data;
+        if (responseData instanceof Blob) {
+          message = await getBlobErrorMessage(responseData, message);
+        }
+      }
+
+      setPdfExportState((prev) => ({
+        ...prev,
+        [sessionId]: {
+          loading: false,
+          error: message,
+        },
+      }));
+    }
   };
 
   const headerStats = useMemo(() => {
@@ -400,6 +547,8 @@ const DashboardPage = () => {
               const completedCount = hasCategories ? categories.filter((c) => !!c.completed_at).length : 0;
               const correctedCount = hasCategories ? categories.filter((c) => c.was_corrected).length : 0;
               const progressPct = hasCategories ? Math.round((completedCount / categories.length) * 100) : 0;
+              const allCategoriesCompleted = hasCategories && completedCount === categories.length;
+              const exportState = pdfExportState[session.id] ?? { loading: false, error: null };
 
               const nextRequiredNorm = hasCategories ? getNextRequiredNorm(categories) : null;
               const orderedAllDone = hasCategories ? nextRequiredNorm === null : false;
@@ -491,7 +640,6 @@ const DashboardPage = () => {
                               </div>
                             </div>
                           </div>
-
                           {catsLoading && (
                             <div className="d-flex flex-column gap-2">
                               <div className="placeholder-glow">
@@ -505,11 +653,9 @@ const DashboardPage = () => {
                               </div>
                             </div>
                           )}
-
                           {!catsLoading && !catsError && !hasCategories && (
                             <p className="mb-0 small text-muted">Žiadne kategórie pre toto sedenie.</p>
                           )}
-
                           {!catsLoading && !catsError && hasCategories && !isCompleted && (
                             <div className="alert alert-info py-2 px-3 mb-3" role="alert">
                               <div className="small">
@@ -527,7 +673,6 @@ const DashboardPage = () => {
                               </div>
                             </div>
                           )}
-
                           {!catsLoading && !catsError && hasCategories && (
                             <ul className="category-list">
                               {categories.map((category) => {
@@ -626,6 +771,27 @@ const DashboardPage = () => {
                               })}
                             </ul>
                           )}
+                          {/*{!catsLoading && !catsError && allCategoriesCompleted && (*/}
+                          <div className="mt-3 d-flex flex-column gap-2">
+                            <div className="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                              <div className="small text-muted">Všetky kategórie sú dokončené. PDF je pripravené na stiahnutie.</div>
+                              <button
+                                type="button"
+                                className="btn btn-success btn-sm"
+                                disabled={exportState.loading || loadingCurrentUser || currentUserId === null}
+                                onClick={() => void handleDownloadPdf(session.id)}
+                              >
+                                {exportState.loading ? "Pripravujem PDF..." : "Stiahnuť PDF"}
+                              </button>
+                            </div>
+
+                            {exportState.error && (
+                              <div className="alert alert-danger py-2 px-3 mb-0" role="alert">
+                                {exportState.error}
+                              </div>
+                            )}
+                          </div>
+                          {/*)} */}
                         </div>
                       </div>
                     </div>
