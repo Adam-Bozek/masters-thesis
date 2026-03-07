@@ -9,10 +9,11 @@ type PageProps = {
   searchParams?: { sessionId?: string };
 };
 
-function Page({ params, searchParams }: PageProps) {
+function Page({ searchParams }: PageProps) {
   const sessionId = useMemo(() => {
     const raw = searchParams?.sessionId;
     if (!raw) return undefined;
+
     const n = Number(raw);
     return Number.isFinite(n) ? n : undefined;
   }, [searchParams?.sessionId]);
@@ -26,9 +27,7 @@ function Page({ params, searchParams }: PageProps) {
       questionnaireConfigPath={`/data/${testedCategory}.json`}
       storageType="database"
       debug
-      // optional:
-      // redirectTo="/dashboard/category"
-      // sessionId={sessionId}
+      sessionId={sessionId}
     />
   );
 }
