@@ -103,6 +103,8 @@ const BOOLEAN_STATE_OPTIONS = [
 
 const normalizeText = (value: string | null | undefined): string => (value ?? "").trim();
 
+const normalizeCompare = (value: string | null | undefined): string => normalizeText(value).toLowerCase();
+
 const getErrorMessage = (error: unknown, fallback: string): string => {
   if (error instanceof Error && error.message.trim()) {
     return error.message;
@@ -140,33 +142,57 @@ const getAnswerMode = (question: Question, rawState: string | null | undefined):
   return "tri";
 };
 
+const getAcceptedTranscriptVariants = (question: Question): string[] => {
+  if (!Array.isArray(question.acceptedTranscripts)) return [];
+
+  const unique = new Map<string, string>();
+
+  for (const item of question.acceptedTranscripts) {
+    if (typeof item !== "string") continue;
+
+    const trimmed = item.trim();
+    if (!trimmed) continue;
+
+    const key = normalizeCompare(trimmed);
+    if (!unique.has(key)) {
+      unique.set(key, trimmed);
+    }
+  }
+
+  return Array.from(unique.values());
+};
+
 const getCorrectAnswerMeta = (
   question: Question,
 ): {
   correctAnswer: string;
   alternativeAnswers: string[];
 } => {
+  const transcriptVariants = getAcceptedTranscriptVariants(question);
+
   if (question.questionType === 1 || question.questionType === 2) {
     const correct = question.answers.find((answer) => answer.isCorrect);
+    const correctAnswer = normalizeText(correct?.label) || transcriptVariants[0] || "—";
+
     return {
-      correctAnswer: correct?.label ?? "—",
-      alternativeAnswers: [],
+      correctAnswer,
+      alternativeAnswers: transcriptVariants.filter((item) => normalizeCompare(item) !== normalizeCompare(correctAnswer)),
     };
   }
 
-  const variants = Array.isArray(question.acceptedTranscripts)
-    ? question.acceptedTranscripts.filter((item) => typeof item === "string" && item.trim())
-    : [];
+  const correctAnswer = transcriptVariants[0] ?? "—";
 
   return {
-    correctAnswer: variants[0] ?? "—",
-    alternativeAnswers: variants.slice(1),
+    correctAnswer,
+    alternativeAnswers: transcriptVariants.filter((item) => normalizeCompare(item) !== normalizeCompare(correctAnswer)),
   };
 };
 
 const getQuestionTitle = (question: Question): string => {
-  if (question.questionType === 2) {
-    return `${question.questionText} / ${question.questionText2}`;
+  if (question.questionType === 1) {
+    return "Čo je na tomto obrázku?";
+  } else if (question.questionType === 2) {
+    return `${question.questionText}`;
   }
 
   return question.questionText;
@@ -339,31 +365,43 @@ const CategoryAnswersEditor = ({ configPath, sessionId, categoryId }: Props) => 
     }
   };
 
+  const handleCategoryTranslation = (categoryId: number): string => {
+    switch (categoryId) {
+      case 1:
+        return "Obchod";
+      case 2:
+        return "Hory";
+      case 3:
+        return "ZOO";
+      case 4:
+        return "Ulica";
+      case 5:
+        return "Domov";
+      default:
+        return `Kategória ${categoryId}`;
+    }
+  };
+
   return (
     <>
       <Header />
 
-      <main className="container d-flex flex-column align-items-start pb-4">
+      <main className={`container d-flex flex-column align-items-start pb-4 ${styles.editorPage}`}>
         <div className="glass p-3 p-lg-4 mb-4 w-100">
           <div className="d-flex flex-column gap-3">
             <div className="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
               <div className="d-flex flex-column gap-1">
-                <h1 className={`${styles.dashTitle} mb-0`}>Korekcia odpovedí</h1>
+                <h1 className={`${styles.dashTitle} mb-3`}>Korekcia odpovedí</h1>
                 <div className="d-flex flex-wrap gap-2 small">
-                  <span className="status-pill status-pill--info">Session: {sessionId}</span>
-                  <span className="status-pill status-pill--info">Kategória: {categoryId}</span>
+                  <span className="status-pill status-pill--info">Test č. {sessionId}</span>
+                  <span className="status-pill status-pill--info">Kategória: {handleCategoryTranslation(categoryId)}</span>
+                  <span className="status-pill status-pill--info">Počet otázok: {stats.total}</span>
                   <span className="status-pill status-pill--active">Zmenené: {stats.edited}</span>
                 </div>
               </div>
-
-              <div className="d-flex flex-wrap gap-2 small">
-                <span className="status-pill status-pill--info">Otázky: {stats.total}</span>
-                <span className="status-pill status-pill--info">1/2/3 stav: {stats.tri}</span>
-                <span className="status-pill status-pill--info">Áno/Nie stav: {stats.bool}</span>
-              </div>
             </div>
 
-            <p className="mb-0">
+            <p className={`${styles.editorLead} mb-0`}>
               Vľavo je správna odpoveď z konfiguračného JSON. Vedľa je pôvodná odpoveď používateľa, editácia textu a prepínanie stavu.
             </p>
           </div>
@@ -426,7 +464,6 @@ const CategoryAnswersEditor = ({ configPath, sessionId, categoryId }: Props) => 
                             {edited && <span className="badge text-bg-warning">Zmenené</span>}
                           </div>
                           <div className="fw-semibold">{row.questionText}</div>
-                          <div className="small text-muted">Typ otázky: {row.questionType}</div>
                           <div className="small text-muted">Posledná odpoveď: {formatDateTime(row.answeredAt)}</div>
                         </div>
 
@@ -482,10 +519,6 @@ const CategoryAnswersEditor = ({ configPath, sessionId, categoryId }: Props) => 
                             ))}
                           </div>
 
-                          <div className="small text-muted">
-                            Aktuálny stav: <span className="fw-semibold">{getStateLabel(row.answerMode, row.currentState)}</span>
-                          </div>
-
                           {edited && (
                             <div className="small" style={{ color: "#c2410c" }}>
                               Zmena stavu: <strong>{getStateLabel(row.answerMode, row.originalState)}</strong> →{" "}
@@ -494,14 +527,16 @@ const CategoryAnswersEditor = ({ configPath, sessionId, categoryId }: Props) => 
                           )}
 
                           <div className="pt-2">
-                            <button
-                              type="button"
-                              className="btn btn-outline-secondary btn-sm"
-                              onClick={() => handleResetRow(row.questionNumber)}
-                              disabled={!edited || saveBusy}
-                            >
-                              Vrátiť pôvodné
-                            </button>
+                            {edited && (
+                              <button
+                                type="button"
+                                className="btn btn-outline-secondary btn-sm"
+                                onClick={() => handleResetRow(row.questionNumber)}
+                                disabled={!edited || saveBusy}
+                              >
+                                Vrátiť pôvodné
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>

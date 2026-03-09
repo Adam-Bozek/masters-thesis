@@ -26,29 +26,23 @@ services:
     image: redis:8.6.1-alpine
     container_name: redis
     restart: unless-stopped
-    environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-    command:
-      - redis-server
-      - --protected-mode
-      - "yes"
-      - --maxmemory
-      - 256mb
-      - --maxmemory-policy
-      - volatile-ttl
-      - --appendonly
-      - "no"
-      - --save
-      - ""
-      - --requirepass
-      - "$${REDIS_PASSWORD}"
+    env_file:
+      - ./backend/.env
+    command: >
+      sh -c 'exec redis-server
+      --protected-mode yes
+      --maxmemory 256mb
+      --maxmemory-policy volatile-ttl
+      --appendonly no
+      --save ""
+      --requirepass "$REDIS_PASSWORD"'
     stop_grace_period: 30s
     ulimits:
       nofile: 65536
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "$${REDIS_PASSWORD}", "PING"]
+      test: ["CMD-SHELL", 'redis-cli -a "$REDIS_PASSWORD" PING']
       interval: 5s
       timeout: 3s
       retries: 3
@@ -61,6 +55,11 @@ services:
     build:
       context: .
       dockerfile: backend/backend.dockerfile
+    env_file:
+      - ./backend/.env
+    environment:
+      REDIS_HOST: cache
+      REDIS_PORT: 6379
     depends_on:
       database:
         condition: service_healthy

@@ -28,14 +28,20 @@ export default function Home() {
             <div className={`col-lg-6 d-flex flex-column justify-content-center text-center ${styles.heroCol}`}>
               <h1 className={`${styles.title} mb-2`}>Vitajte! 👋</h1>
               <p className="mb-3">
-                Táto webová aplikácia vznikla ako súčasť praktickej časti diplomovej práce a slúži na testovanie dieťaťa skrátenou verziou testu TEKOS
-                2. Autorom je Bc. Adam Božek pod vedením doc. Ing. Stanislava Ondáša, PhD. Viac informácií nájdete v karte Informácie.
+                Táto webová aplikácia vznikla v rámci projektu 3PoCube APVV-22-0261 a ako súčasť praktickej časti diplomovej práce a slúži na
+                testovanie dieťaťa skrátenou verziou testu TEKOS 2. Autorom je Bc. Adam Božek pod vedením doc. Ing. Stanislava Ondáša, PhD. V prípade
+                otázok kontaktuje vedúceho práce na emailovej adrese <a href="mailto:stanislav.ondas@tuke.sk">stanislav.ondas@tuke.sk</a>.
               </p>
+              <p>Katedra počitáčových sietí: https://kps.fei.tuke.sk/</p>
+              <p>Ďqalšie testy: https://nlp.kemt.fei.tuke.sk/audiometry</p>
 
+              <p className="status-pill status-pill--active warning-pill py-1">
+                Aplikácia sa stále vyvýja preto môžete nájsť chýby. ak nejakú nájdete tak sa prosím obráť ťe na ved úceho diplomovej práce a zašlite
+                aj popis chyby. poprípade aj fotku.
+              </p>
               <p className="status-pill status-pill--active warning-pill py-1">
                 Pre správne fungovanie webovej aplikácie je potrbené použiť prehliadač Google Chrome.
               </p>
-
               <div className="glass my-4 p-2 rounded-4 align-self-center" style={{ width: "max-content" }}>
                 <button
                   type="button"
@@ -68,7 +74,6 @@ export default function Home() {
                   Informácie
                 </button>
               </div>
-
               <div className="glass my-4 p-2 rounded-4 align-self-center" style={{ width: "max-content" }}>
                 <button
                   type="button"

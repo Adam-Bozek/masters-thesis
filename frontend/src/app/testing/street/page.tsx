@@ -1,22 +1,20 @@
 "use client";
 
 import { useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import withAuth from "@/utilities/WithAuth";
 import CategoryTestingController from "@/components/private/Controller";
 
-type PageProps = {
-  params: { categoryname: string };
-  searchParams?: { sessionId?: string };
-};
+function Page() {
+  const searchParams = useSearchParams();
 
-function Page({ searchParams }: PageProps) {
   const sessionId = useMemo(() => {
-    const raw = searchParams?.sessionId;
+    const raw = searchParams.get("sessionId");
     if (!raw) return undefined;
 
     const n = Number(raw);
     return Number.isFinite(n) ? n : undefined;
-  }, [searchParams?.sessionId]);
+  }, [searchParams]);
 
   const testedCategory = "street";
 

@@ -6,13 +6,7 @@ body {
 
 html{
   min-height: 100%;
-  background:
-    radial-gradient(900px 520px at 12% 18%, rgba(255,255,255,0.55), transparent 60%),
-    radial-gradient(900px 520px at 88% 10%, rgba(255,255,255,0.45), transparent 55%),
-    radial-gradient(1200px 700px at 50% 110%, rgba(147,197,253,0.32), transparent 60%),
-    linear-gradient(30deg, #93c5fd 0%, #ffffff 100%);
-  background-repeat: no-repeat;
-  background-attachment: fixed;
+  background: #dbeafe;
 }
 
 /* body stays transparent so it never “resets” the gradient */
@@ -24,17 +18,8 @@ body{
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* extra depth without changing your palette */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: -1;
-  background:
-    radial-gradient(900px 520px at 12% 18%, rgba(255,255,255,0.55), transparent 60%),
-    radial-gradient(900px 520px at 88% 10%, rgba(255,255,255,0.45), transparent 55%),
-    radial-gradient(1200px 700px at 50% 95%, rgba(147,197,253,0.28), transparent 60%);
+body::before{
+  display: none;
 }
 
 /* ---------- ROOT COLOR TOKENS ---------- */
@@ -85,15 +70,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .glass::before{
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background:
-    radial-gradient(120% 70% at 10% 0%, rgba(255,255,255,0.45) 0%, transparent 55%),
-    linear-gradient(180deg, rgba(255,255,255,0.06), transparent);
-  pointer-events: none;
-  mix-blend-mode: screen;
+  display: none;
 }
 
 /* ---------- INPUTS WITH GLASS EFFECT ---------- */

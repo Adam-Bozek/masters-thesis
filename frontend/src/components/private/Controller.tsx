@@ -222,13 +222,6 @@ function resolveRedirectPath(redirectTo: RedirectResolver | undefined, categoryI
   return runtimeConfig.defaultRedirectPath;
 }
 
-function getSessionSortTimestamp(session: SessionListItem): number {
-  const createdAt = parseApiDate(session.created_at);
-  const startedAt = parseApiDate(session.started_at);
-
-  return createdAt?.getTime() ?? startedAt?.getTime() ?? 0;
-}
-
 function isErrorMessageMatch(message: string, fragment: string): boolean {
   return message.toLowerCase().includes(fragment.toLowerCase());
 }
@@ -377,6 +370,7 @@ function CategoryTestingController({
     }
 
     if (initialSessionId) {
+      setSessionId(initialSessionId);
       return initialSessionId;
     }
 
@@ -389,7 +383,7 @@ function CategoryTestingController({
       const createdSessionId = Number(response?.data?.session_id);
 
       if (!Number.isFinite(createdSessionId)) {
-        throw new Error("create_session: missing session_id");
+        throw new Error("Nepodarilo sa vytvoriť nové testovanie.");
       }
 
       setSessionId(createdSessionId);
@@ -397,30 +391,7 @@ function CategoryTestingController({
       return createdSessionId;
     }
 
-    const response = await axiosInstance.get("/sessions");
-    const sessions = Array.isArray(response?.data) ? (response.data as SessionListItem[]) : [];
-
-    const newestOpenSession = sessions
-      .filter((session) => session && session.completed_at == null && Number.isFinite(Number(session.id)))
-      .sort((leftSession, rightSession) => getSessionSortTimestamp(rightSession) - getSessionSortTimestamp(leftSession))[0];
-
-    if (newestOpenSession) {
-      const reusedSessionId = Number(newestOpenSession.id);
-      setSessionId(reusedSessionId);
-      log("reusing open session", reusedSessionId);
-      return reusedSessionId;
-    }
-
-    const createFallbackResponse = await axiosInstance.post("/sessions");
-    const fallbackSessionId = Number(createFallbackResponse?.data?.session_id);
-
-    if (!Number.isFinite(fallbackSessionId)) {
-      throw new Error("create_session fallback: missing session_id");
-    }
-
-    setSessionId(fallbackSessionId);
-    log("created fallback session", fallbackSessionId);
-    return fallbackSessionId;
+    throw new Error("Chýba sessionId pre túto kategóriu.");
   }, [storageType, initialSessionId, sessionId, testedCategory, log]);
 
   const findLatestCategoryCompletionInDatabase = useCallback(async (): Promise<Date | null> => {
