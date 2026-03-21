@@ -93,7 +93,7 @@ services:
     networks: [app]
 
   nginx:
-    image: nginx:1.29.5-alpine-slim
+    image: nginx:1.29.6-alpine-slim
     container_name: nginx
     restart: unless-stopped
     ports:
