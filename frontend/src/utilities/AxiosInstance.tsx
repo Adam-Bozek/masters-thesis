@@ -9,6 +9,8 @@ type PendingRequest = {
   reject: (error: unknown) => void;
 };
 
+const GUEST_TOKEN_KEY = "guestSessionToken";
+
 const axiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
 });
@@ -36,6 +38,11 @@ const shouldSkipRefresh = (url?: string) => {
   return ["/login", "/register", "/refresh"].some((path) => url.endsWith(path));
 };
 
+const isGuestSessionsRequest = (url?: string) => {
+  if (!url) return false;
+  return url.includes("/sessions");
+};
+
 const resolvePending = (token: string) => {
   pending.forEach(({ resolve }) => resolve(token));
   pending = [];
@@ -49,8 +56,14 @@ const rejectPending = (error: unknown) => {
 axiosInstance.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("accessToken");
+    const guestToken = localStorage.getItem(GUEST_TOKEN_KEY);
+
     if (token && !config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    if (!token && guestToken && isGuestSessionsRequest(config.url) && !config.headers["X-Guest-Token"]) {
+      config.headers["X-Guest-Token"] = guestToken;
     }
   }
 
@@ -64,6 +77,12 @@ axiosInstance.interceptors.response.use(
     const config = error.config as RetryableRequestConfig | undefined;
 
     if (!response || !config) {
+      throw error;
+    }
+
+    const usedGuestToken = Boolean(config.headers?.["X-Guest-Token"]);
+
+    if (usedGuestToken) {
       throw error;
     }
 
@@ -109,7 +128,7 @@ axiosInstance.interceptors.response.use(
         localStorage.setItem("accessToken", newToken);
       }
 
-      axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
+      axiosInstance.defaults.headers.common.Authorization = `Bearer ${newToken}`;
       resolvePending(newToken);
 
       config.headers.Authorization = `Bearer ${newToken}`;

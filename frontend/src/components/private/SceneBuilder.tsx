@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import withAuth from "@/utilities/WithAuth";
 import { sceneBuilderRuntimeConfig as sharedSceneBuilderRuntimeConfig } from "./componentRuntimeConfigs";
 
 export type DisplayType = "insert" | "add" | "remove_last_and_add" | "remove_all_and_add";
@@ -466,4 +465,4 @@ function SceneBuilder({ config, onComplete, onSkip, debug = false, runtimeConfig
   );
 }
 
-export default withAuth(SceneBuilder);
+export default SceneBuilder;

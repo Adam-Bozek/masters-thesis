@@ -85,6 +85,7 @@ type Props = {
   categoryId: number;
   storageType: StorageType;
   sessionId?: number;
+  guestToken?: string;
   answersPath?: (sessionId: number) => string;
   debug?: boolean;
   config?: Partial<Phase5RuntimeConfig>;
@@ -262,7 +263,7 @@ function LoadingImageFill({
  * Component
  * -----------------------------------------------------------------------------------------------*/
 
-function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, answersPath, debug = false, config, onComplete }: Props) {
+function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, guestToken, answersPath, debug = false, config, onComplete }: Props) {
   const runtimeConfig = useMemo(
     () => ({
       ...DEFAULT_PHASE5_CONFIG,
@@ -273,7 +274,33 @@ function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, ans
 
   const useLocalStorage = storageType === "local_storage";
   const useDatabase = storageType === "database";
+  const guestHeaders = useMemo(() => (guestToken ? ({ "X-Guest-Token": guestToken, Authorization: " " } as const) : undefined), [guestToken]);
   const localScopeKey = useMemo(() => buildStorageScopeKey(categoryId), [categoryId]);
+
+  const getGuestRequestHeaders = useCallback((): Record<string, string> | undefined => {
+    if (!sessionId) return undefined;
+
+    if (guestToken && guestToken.trim()) {
+      return {
+        "X-Guest-Token": guestToken.trim(),
+        Authorization: " ",
+      };
+    }
+
+    if (typeof window === "undefined") return undefined;
+
+    const storedGuestSessionId = localStorage.getItem("guestSessionId");
+    const storedGuestToken = localStorage.getItem("guestSessionToken");
+
+    if (storedGuestSessionId === String(sessionId) && storedGuestToken) {
+      return {
+        "X-Guest-Token": storedGuestToken,
+        Authorization: " ",
+      };
+    }
+
+    return undefined;
+  }, [guestToken, sessionId]);
 
   const [loading, setLoading] = useState(true);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -344,9 +371,11 @@ function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, ans
       }
 
       const saveUrl = (answersPath ?? DEFAULT_ANSWERS_PATH)(sessionId);
-      await axiosInstance.post(saveUrl, payload);
+      await axiosInstance.post(saveUrl, payload, {
+        headers: getGuestRequestHeaders(),
+      });
     },
-    [answersPath, sessionId],
+    [answersPath, getGuestRequestHeaders, sessionId],
   );
 
   const finalizeAnswer = useCallback(
@@ -366,7 +395,7 @@ function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, ans
       try {
         if (useLocalStorage) {
           persistResultToLocalStorage(localScopeKey, payload);
-        } else {
+        } else if (useDatabase) {
           await saveResultToDatabase(payload);
         }
 
@@ -390,7 +419,7 @@ function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, ans
         setSaveBusy(false);
       }
     },
-    [answeredIds, categoryId, localScopeKey, onComplete, remainingQuestions.length, saveBusy, saveResultToDatabase, useLocalStorage],
+    [answeredIds, categoryId, localScopeKey, onComplete, remainingQuestions.length, saveBusy, saveResultToDatabase, useDatabase, useLocalStorage],
   );
 
   useEffect(() => {
@@ -437,7 +466,9 @@ function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, ans
 
     const hydrateFromDatabase = async () => {
       const readUrl = (answersPath ?? DEFAULT_ANSWERS_PATH)(sessionId);
-      const response = await axiosInstance.get(readUrl);
+      const response = await axiosInstance.get(readUrl, {
+        headers: getGuestRequestHeaders(),
+      });
       const rawData = response?.data;
       const rows = Array.isArray(rawData) ? rawData : Array.isArray(rawData?.answers) ? rawData.answers : [];
       const relevantQuestionIds = new Set(questions.map((question) => question.questionId));
@@ -460,7 +491,7 @@ function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, ans
     hydrateFromDatabase().catch((caughtError) => {
       console.error("[Phase5] Database hydration failed", caughtError);
     });
-  }, [answersPath, categoryId, questions, sessionId, useDatabase]);
+  }, [answersPath, categoryId, getGuestRequestHeaders, questions, sessionId, useDatabase]);
 
   useEffect(() => {
     if (activeIndex < remainingQuestions.length) return;
@@ -744,5 +775,7 @@ function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, ans
     </div>
   );
 }
+
+export { Phase5Testing };
 
 export default withAuth(Phase5Testing);

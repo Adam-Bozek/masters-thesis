@@ -1,6 +1,6 @@
 "use client";
 
-import CategoryTestingController from "@/components/private/Controller";
+import { CategoryTestingController } from "@/components/private/Controller";
 
 export default function Page() {
   return (
@@ -8,11 +8,8 @@ export default function Page() {
       testedCategory="marketplace"
       scenesConfigPath="/data/demo/scenes.json"
       questionnaireConfigPath="/data/demo/questions.json"
-      storageType="database"
-      debug
-      // optional:
-      // sessionId={8}
-      // redirectTo="/dashboard/category"
+      storageType="memory"
+      redirectTo="/"
     />
   );
 }

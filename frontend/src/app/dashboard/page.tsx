@@ -14,8 +14,14 @@ import Header from "@/components/private/Header";
 
 type Session = {
   id: number;
+  public_id?: string | null;
+  note: string | null;
+  is_guest?: boolean;
   started_at: string;
+  last_activity_at?: string | null;
+  expires_at?: string | null;
   completed_at: string | null;
+  answers_count?: number;
 };
 
 type SessionCategory = {
@@ -36,6 +42,11 @@ type CategoriesState = {
 };
 
 type ExportState = {
+  loading: boolean;
+  error: string | null;
+};
+
+type SaveState = {
   loading: boolean;
   error: string | null;
 };
@@ -198,6 +209,8 @@ const DashboardPage = () => {
 
   const [categoriesState, setCategoriesState] = useState<CategoriesState>({});
   const [pdfExportState, setPdfExportState] = useState<Record<number, ExportState>>({});
+  const [noteDrafts, setNoteDrafts] = useState<Record<number, string>>({});
+  const [noteSaveState, setNoteSaveState] = useState<Record<number, SaveState>>({});
   const inFlightCategories = useRef<Set<number>>(new Set());
 
   useEffect(() => {
@@ -224,6 +237,7 @@ const DashboardPage = () => {
 
         const res = await axiosInstance.get<Session[]>("/sessions");
         setSessions(res.data);
+        setNoteDrafts(Object.fromEntries(res.data.map((session) => [session.id, session.note ?? ""])));
       } catch (err: unknown) {
         setSessionsError(getErrorMessage(err, "Neznáma chyba pri načítaní sedení."));
       } finally {
@@ -301,6 +315,62 @@ const DashboardPage = () => {
 
   const handleToggleSession = (sessionId: number) => {
     setExpandedSessionId((prev) => (prev === sessionId ? null : sessionId));
+  };
+
+  const handleNoteDraftChange = (sessionId: number, value: string) => {
+    setNoteDrafts((prev) => ({
+      ...prev,
+      [sessionId]: value,
+    }));
+  };
+
+  const handleSaveNote = async (sessionId: number) => {
+    const note = (noteDrafts[sessionId] ?? "").trim();
+
+    setNoteSaveState((prev) => ({
+      ...prev,
+      [sessionId]: {
+        loading: true,
+        error: null,
+      },
+    }));
+
+    try {
+      const response = await axiosInstance.patch<{ note: string | null }>(`/sessions/${sessionId}`, { note });
+      const savedNote = response.data.note ?? null;
+
+      setSessions((prev) =>
+        prev.map((session) =>
+          session.id === sessionId
+            ? {
+                ...session,
+                note: savedNote,
+              }
+            : session,
+        ),
+      );
+
+      setNoteDrafts((prev) => ({
+        ...prev,
+        [sessionId]: savedNote ?? "",
+      }));
+
+      setNoteSaveState((prev) => ({
+        ...prev,
+        [sessionId]: {
+          loading: false,
+          error: null,
+        },
+      }));
+    } catch (err: unknown) {
+      setNoteSaveState((prev) => ({
+        ...prev,
+        [sessionId]: {
+          loading: false,
+          error: getErrorMessage(err, "Nepodarilo sa uložiť poznámku."),
+        },
+      }));
+    }
   };
 
   const handleDownloadPdf = async (sessionId: number) => {
@@ -549,6 +619,9 @@ const DashboardPage = () => {
               const progressPct = hasCategories ? Math.round((completedCount / categories.length) * 100) : 0;
               const allCategoriesCompleted = hasCategories && completedCount === categories.length;
               const exportState = pdfExportState[session.id] ?? { loading: false, error: null };
+              const noteSave = noteSaveState[session.id] ?? { loading: false, error: null };
+              const noteValue = noteDrafts[session.id] ?? session.note ?? "";
+              const noteDisplay = (session.note ?? "").trim();
 
               const nextRequiredNorm = hasCategories ? getNextRequiredNorm(categories) : null;
               const orderedAllDone = hasCategories ? nextRequiredNorm === null : false;
@@ -569,6 +642,11 @@ const DashboardPage = () => {
                                 <strong>Testovanie</strong>
                                 <span className="small text-muted">zo dňa: {formatDate(session.started_at)}</span>
                                 <StatusPill variant={isCompleted ? "done" : "active"}>{isCompleted ? "Ukončené" : "Prebieha"}</StatusPill>
+                                {noteDisplay && (
+                                  <span className="badge rounded-pill text-bg-light border" title={noteDisplay}>
+                                    Poznámka: {noteDisplay}
+                                  </span>
+                                )}
                               </div>
 
                               {catsLoading ? (
@@ -595,19 +673,6 @@ const DashboardPage = () => {
                                     aria-valuemax={100}
                                   />
                                 </div>
-
-                                {!isCompleted && (
-                                  <div className="small text-muted">
-                                    <span className="fw-semibold">
-                                      {orderedAllDone ? "Všetky povinné kategórie sú dokončené." : getLabelFromNorm(nextRequiredNorm ?? "")}
-                                    </span>
-                                    {orderedAllDone
-                                      ? "Všetky povinné kategórie sú dokončené."
-                                      : nextRequiredNorm === "marketplace"
-                                        ? `${getLabelFromNorm(nextRequiredNorm)} (spúšťa sa cez „Nová hra“).`
-                                        : getLabelFromNorm(nextRequiredNorm ?? "")}
-                                  </div>
-                                )}
                               </div>
                             )}
 
@@ -618,6 +683,35 @@ const DashboardPage = () => {
 
                       <div className={`accordion-collapse collapse ${isOpen ? "show" : ""}`}>
                         <div className="accordion-body">
+                          <div className="mb-3">
+                            <label htmlFor={`session-note-${session.id}`} className="form-label fw-semibold mb-1">
+                              Poznámka
+                            </label>
+                            <div className="d-flex flex-column flex-md-row gap-2 align-items-md-start">
+                              <input
+                                id={`session-note-${session.id}`}
+                                type="text"
+                                className="form-control glass-input"
+                                value={noteValue}
+                                onChange={(e) => handleNoteDraftChange(session.id, e.target.value)}
+                                placeholder="Napr. meno dieťaťa alebo interná poznámka"
+                                maxLength={200}
+                              />
+                              <button
+                                type="button"
+                                className="btn btn-outline-primary"
+                                disabled={noteSave.loading}
+                                onClick={() => void handleSaveNote(session.id)}
+                              >
+                                {noteSave.loading ? "Ukladám..." : "Uložiť"}
+                              </button>
+                            </div>
+                            {noteSave.error && <div className="small text-danger mt-2">{noteSave.error}</div>}
+                            {!noteSave.error && noteDisplay && (
+                              <div className="small text-muted mt-2">Aktuálne zobrazené v prehľade: {noteDisplay}</div>
+                            )}
+                          </div>
+
                           <div className="mb-3">
                             <div className="row g-2">
                               <div className="col-12 col-lg-4">
@@ -660,16 +754,6 @@ const DashboardPage = () => {
                             <div className="alert alert-info py-2 px-3 mb-3" role="alert">
                               <div className="small">
                                 <strong>Poradie:</strong> {getOrderDisplay()}
-                              </div>
-                              <div className="small mt-1">
-                                <strong>
-                                  {orderedAllDone ? "Všetky povinné kategórie sú dokončené." : getLabelFromNorm(nextRequiredNorm ?? "")}
-                                </strong>
-                                {orderedAllDone
-                                  ? "Všetky povinné kategórie sú dokončené."
-                                  : nextRequiredNorm === "marketplace"
-                                    ? `${getLabelFromNorm(nextRequiredNorm)} (spúšťa sa cez „Nová hra“).`
-                                    : getLabelFromNorm(nextRequiredNorm ?? "")}
                               </div>
                             </div>
                           )}

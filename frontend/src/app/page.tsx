@@ -28,19 +28,35 @@ export default function Home() {
             <div className={`col-lg-6 d-flex flex-column justify-content-center text-center ${styles.heroCol}`}>
               <h1 className={`${styles.title} mb-2`}>Vitajte! 👋</h1>
               <p className="mb-3">
-                Táto webová aplikácia vznikla v rámci projektu 3PoCube APVV-22-0261 a ako súčasť praktickej časti diplomovej práce a slúži na
-                testovanie dieťaťa skrátenou verziou testu TEKOS 2. Autorom je Bc. Adam Božek pod vedením doc. Ing. Stanislava Ondáša, PhD. V prípade
-                otázok kontaktuje vedúceho práce na emailovej adrese <a href="mailto:stanislav.ondas@tuke.sk">stanislav.ondas@tuke.sk</a>.
+                Táto webová aplikácia vznikla v rámci projektu <strong>3PoCube APVV-22-0261 </strong> ako súčasť praktickej časti diplomovej práce s
+                názvom
+                <strong> Aplikácia pre testovanie komunikačných schopností u detí</strong>. Slúži na skríning dieťaťa skrátenou verziou TEKOS II.
+                Autorom aplikácie je <strong>Bc. Adam Božek</strong> pod vedením
+                <strong> doc. Ing. Stanislava Ondáša, PhD.</strong> V prípade otázok kontaktujte vedúceho práce na e-mailovej adrese
+                <a href="mailto:stanislav.ondas@tuke.sk"> stanislav.ondas@tuke.sk</a>.
               </p>
-              <p>Katedra počitáčových sietí: https://kps.fei.tuke.sk/</p>
-              <p>Ďqalšie testy: https://nlp.kemt.fei.tuke.sk/audiometry</p>
+
+              <p>
+                Katedra počítačových sietí:{" "}
+                <a href="https://kps.fei.tuke.sk/" target="_blank" rel="noopener noreferrer">
+                  https://kps.fei.tuke.sk/
+                </a>
+              </p>
+
+              <p>
+                Ďalšie testy:{" "}
+                <a href="https://nlp.kemt.fei.tuke.sk/audiometry" target="_blank" rel="noopener noreferrer">
+                  https://nlp.kemt.fei.tuke.sk/audiometry
+                </a>
+              </p>
 
               <p className="status-pill status-pill--active warning-pill py-1">
-                Aplikácia sa stále vyvýja preto môžete nájsť chýby. ak nejakú nájdete tak sa prosím obráť ťe na ved úceho diplomovej práce a zašlite
-                aj popis chyby. poprípade aj fotku.
+                Aplikácia sa stále vyvíja, preto sa v nej môžu vyskytnúť chyby. Ak nejakú nájdete, obráťte sa, prosím, na vedúceho diplomovej práce a
+                pošlite aj popis chyby, prípadne fotografiu.
               </p>
+
               <p className="status-pill status-pill--active warning-pill py-1">
-                Pre správne fungovanie webovej aplikácie je potrbené použiť prehliadač Google Chrome.
+                Pre správne fungovanie webovej aplikácie je potrebné použiť prehliadač Google Chrome.
               </p>
               <div className="glass my-4 p-2 rounded-4 align-self-center" style={{ width: "max-content" }}>
                 <button

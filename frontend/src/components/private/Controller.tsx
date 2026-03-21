@@ -4,10 +4,9 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import SceneBuilder, { SceneConfig } from "@/components/private/SceneBuilder";
-import Phase3Testing from "@/components/private/Phase3Testing";
-import Phase5Testing from "@/components/private/Phase5Testing";
+import { Phase3Testing } from "@/components/private/Phase3Testing";
+import { Phase5Testing } from "@/components/private/Phase5Testing";
 import axiosInstance from "@/utilities/AxiosInstance";
-import withAuth from "@/utilities/WithAuth";
 import {
   controllerRuntimeConfig as sharedControllerRuntimeConfig,
   phase3RuntimeConfig as sharedPhase3RuntimeConfig,
@@ -19,7 +18,7 @@ import {
  * Types
  * -----------------------------------------------------------------------------------------------*/
 
-type StorageType = "session_storage" | "local_storage" | "database";
+type StorageType = "session_storage" | "local_storage" | "database" | "memory";
 type TestedCategory = "marketplace" | "mountains" | "zoo" | "street" | "home";
 type ScenePhase = 1 | 2 | 4 | 6;
 type ControllerStep = "boot" | "phase1" | "phase2" | "phase3" | "phase4" | "phase5" | "phase6" | "done" | "error";
@@ -76,6 +75,7 @@ type CategoryTestingControllerProps = {
   storageType: StorageType;
   categoryId?: number;
   sessionId?: number;
+  guestToken?: string;
   redirectTo?: RedirectResolver;
   debug?: boolean;
   config?: Partial<ControllerRuntimeConfig>;
@@ -226,6 +226,35 @@ function isErrorMessageMatch(message: string, fragment: string): boolean {
   return message.toLowerCase().includes(fragment.toLowerCase());
 }
 
+function getGuestRequestHeaders(sessionId: number | null | undefined, guestToken?: string): Record<string, string> | undefined {
+  if (!sessionId) {
+    return undefined;
+  }
+
+  if (guestToken && guestToken.trim()) {
+    return {
+      "X-Guest-Token": guestToken.trim(),
+      Authorization: " ",
+    };
+  }
+
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  const storedGuestSessionId = localStorage.getItem("guestSessionId");
+  const storedGuestToken = localStorage.getItem("guestSessionToken");
+
+  if (storedGuestSessionId === String(sessionId) && storedGuestToken) {
+    return {
+      "X-Guest-Token": storedGuestToken,
+      Authorization: " ",
+    };
+  }
+
+  return undefined;
+}
+
 /* -------------------------------------------------------------------------------------------------
  * Small UI building blocks
  * -----------------------------------------------------------------------------------------------*/
@@ -263,6 +292,7 @@ function CategoryTestingController({
   storageType,
   categoryId: categoryIdOverride,
   sessionId: initialSessionId,
+  guestToken,
   redirectTo,
   debug = false,
   config,
@@ -287,6 +317,7 @@ function CategoryTestingController({
   const [scenesLoaded, setScenesLoaded] = useState(false);
   const [scenesByCategory, setScenesByCategory] = useState<ScenesByCategoryMap>({});
   const [incorrectQuestions, setIncorrectQuestions] = useState<IncorrectQuestion[]>([]);
+  const guestHeaders = useMemo(() => (guestToken ? ({ "X-Guest-Token": guestToken, Authorization: " " } as const) : undefined), [guestToken]);
 
   const scenesForCurrentCategory = useMemo(() => {
     const normalizedCategoryKey = normalizeSceneKey(testedCategory, runtimeConfig);
@@ -470,7 +501,9 @@ function CategoryTestingController({
   const ensureCategoryCompletedInDatabase = useCallback(
     async (databaseSessionId: number): Promise<void> => {
       try {
-        await axiosInstance.patch(`/sessions/${databaseSessionId}/categories/${categoryId}/complete`);
+        await axiosInstance.patch(`/sessions/${databaseSessionId}/categories/${categoryId}/complete`, undefined, {
+          headers: getGuestRequestHeaders(databaseSessionId, guestToken),
+        });
         log("category completed", { databaseSessionId, categoryId });
         return;
       } catch (error) {
@@ -478,13 +511,21 @@ function CategoryTestingController({
 
         if (status === 400 && isErrorMessageMatch(message, runtimeConfig.noAnswersMessageFragment)) {
           log("category has no answers, seeding placeholder answer before completion");
-          await axiosInstance.post(`/sessions/${databaseSessionId}/answers`, {
-            category_id: categoryId,
-            question_number: 1,
-            answer_state: "0",
-            user_answer: null,
+          await axiosInstance.post(
+            `/sessions/${databaseSessionId}/answers`,
+            {
+              category_id: categoryId,
+              question_number: 1,
+              answer_state: "3",
+              user_answer: null,
+            },
+            {
+              headers: getGuestRequestHeaders(databaseSessionId, guestToken),
+            },
+          );
+          await axiosInstance.patch(`/sessions/${databaseSessionId}/categories/${categoryId}/complete`, undefined, {
+            headers: getGuestRequestHeaders(databaseSessionId, guestToken),
           });
-          await axiosInstance.patch(`/sessions/${databaseSessionId}/categories/${categoryId}/complete`);
           log("category completed after placeholder answer", { databaseSessionId, categoryId });
           return;
         }
@@ -496,13 +537,15 @@ function CategoryTestingController({
         throw error;
       }
     },
-    [categoryId, log, runtimeConfig.alreadyCompletedMessageFragment, runtimeConfig.noAnswersMessageFragment],
+    [categoryId, guestToken, log, runtimeConfig.alreadyCompletedMessageFragment, runtimeConfig.noAnswersMessageFragment],
   );
 
   const markCategoryCorrectedInDatabase = useCallback(
     async (databaseSessionId: number): Promise<void> => {
       try {
-        await axiosInstance.patch(`/sessions/${databaseSessionId}/categories/${categoryId}/correct`);
+        await axiosInstance.patch(`/sessions/${databaseSessionId}/categories/${categoryId}/correct`, undefined, {
+          headers: getGuestRequestHeaders(databaseSessionId, guestToken),
+        });
         log("category corrected", { databaseSessionId, categoryId });
       } catch (error) {
         const { status, message } = extractApiError(error);
@@ -514,7 +557,7 @@ function CategoryTestingController({
         log("correct category failed (non-fatal)", extractApiError(error));
       }
     },
-    [categoryId, log, runtimeConfig.alreadyCorrectedMessageFragment],
+    [categoryId, guestToken, log, runtimeConfig.alreadyCorrectedMessageFragment],
   );
 
   useEffect(() => {
@@ -650,6 +693,7 @@ function CategoryTestingController({
         categoryId={categoryId}
         storageType={storageType as React.ComponentProps<typeof Phase3Testing>["storageType"]}
         sessionId={databaseSessionId ?? undefined}
+        guestToken={guestToken}
         debug={debug}
         config={sharedPhase3RuntimeConfig}
         onComplete={(receivedIncorrectQuestions: IncorrectQuestion[]) => {
@@ -678,6 +722,7 @@ function CategoryTestingController({
         categoryId={categoryId}
         storageType={storageType as React.ComponentProps<typeof Phase5Testing>["storageType"]}
         sessionId={databaseSessionId ?? undefined}
+        guestToken={guestToken}
         debug={debug}
         config={sharedPhase5RuntimeConfig}
         onComplete={async () => {
@@ -750,7 +795,7 @@ function FinalizeAndRedirect({
           }
 
           await ensureCategoryCompletedDb(sessionId);
-        } else {
+        } else if (storageType !== "memory") {
           const browserStorage = getBrowserStorage(storageType);
           if (!browserStorage) {
             throw new Error("Web storage not available");
@@ -764,6 +809,14 @@ function FinalizeAndRedirect({
         }
 
         log("redirecting after category completion", { storageType, sessionId, categoryId, redirectHref });
+        if (redirectHref === "__guest_internal__" && typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("guest-category-complete", {
+              detail: { categoryId, sessionId },
+            }),
+          );
+          return;
+        }
         router.push(redirectHref);
         router.refresh();
       } catch (error) {
@@ -791,4 +844,6 @@ function FinalizeAndRedirect({
   return <FullscreenStatus title={runtimeConfig.finalizeErrorTitle} subtitle={errorMessage} />;
 }
 
-export default withAuth(CategoryTestingController);
+export { CategoryTestingController };
+
+export default CategoryTestingController;

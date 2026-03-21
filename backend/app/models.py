@@ -1,6 +1,12 @@
 from __future__ import annotations
-from datetime import datetime
+
+from datetime import datetime, timezone
+
 from . import db
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 class User(db.Model):
@@ -12,6 +18,7 @@ class User(db.Model):
     email = db.Column(db.Text, unique=True, nullable=False, index=True)
     password = db.Column(db.Text, nullable=False)
     token_version = db.Column(db.Integer, nullable=False, default=1)
+
     test_sessions = db.relationship("UserTestSession", back_populates="user", cascade="all, delete-orphan")
 
     def __init__(self, first_name: str, last_name: str, email: str, password: str, token_version: int = 1) -> None:
@@ -29,15 +36,7 @@ class TestCategory(db.Model):
     name = db.Column(db.Text, nullable=False, unique=True)
     question_count = db.Column(db.Integer, nullable=False)
 
-    # one category can appear in many sessions
-    session_categories = db.relationship(
-        "SessionTestCategory",
-        back_populates="category",
-        cascade="all, delete-orphan",
-    )
-
-    # optional: if you still want all answers for this category across all sessions
-    # answers = db.relationship("UserTestAnswer", back_populates="category")
+    session_categories = db.relationship("SessionTestCategory", back_populates="category", cascade="all, delete-orphan")
 
     def __init__(self, name: str, question_count: int) -> None:
         self.name = name
@@ -48,62 +47,70 @@ class UserTestSession(db.Model):
     __tablename__ = "user_test_sessions"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(
-        db.Integer,
-        db.ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    started_at = db.Column(db.DateTime, default=datetime.utcnow)
-    completed_at = db.Column(db.DateTime, nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    note = db.Column(db.Text, nullable=True)
+    public_id = db.Column(db.Text, unique=True, nullable=True)
+    guest_token = db.Column(db.Text, unique=True, nullable=True)
+    is_guest = db.Column(db.Boolean, nullable=False, default=False)
+    started_at = db.Column(db.DateTime(timezone=True), default=utc_now)
+    last_activity_at = db.Column(db.DateTime(timezone=True), default=utc_now)
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    completed_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     user = db.relationship("User", back_populates="test_sessions")
-
-    # all categories (Marketplace, Mountains, ...) for this particular session
     session_categories = db.relationship(
         "SessionTestCategory",
         back_populates="session",
         cascade="all, delete-orphan",
+        overlaps="answers,session",
     )
-
-    # still useful: all answers in this session
     answers = db.relationship(
         "UserTestAnswer",
         back_populates="session",
         cascade="all, delete-orphan",
+        overlaps="session_category,answers",
     )
 
-    def __init__(self, user_id: int, completed_at: datetime | None = None) -> None:
+    def __init__(
+        self,
+        user_id: int | None = None,
+        note: str | None = None,
+        public_id: str | None = None,
+        guest_token: str | None = None,
+        is_guest: bool = False,
+        started_at: datetime | None = None,
+        last_activity_at: datetime | None = None,
+        expires_at: datetime | None = None,
+        completed_at: datetime | None = None,
+    ) -> None:
+        now = utc_now()
         self.user_id = user_id
+        self.note = note
+        self.public_id = public_id
+        self.guest_token = guest_token
+        self.is_guest = is_guest
+        self.started_at = started_at or now
+        self.last_activity_at = last_activity_at or now
+        self.expires_at = expires_at
         self.completed_at = completed_at
 
 
 class SessionTestCategory(db.Model):
     __tablename__ = "session_test_categories"
 
-    # composite PK: each category appears at most once per session
-    session_id = db.Column(
-        db.Integer,
-        db.ForeignKey("user_test_sessions.id", ondelete="CASCADE"),
-        primary_key=True,
-    )
-    category_id = db.Column(
-        db.Integer,
-        db.ForeignKey("test_categories.id"),
-        primary_key=True,
-    )
-
-    started_at = db.Column(db.DateTime, nullable=True)
-    completed_at = db.Column(db.DateTime, nullable=True)
+    session_id = db.Column(db.Integer, db.ForeignKey("user_test_sessions.id", ondelete="CASCADE"), primary_key=True)
+    category_id = db.Column(db.Integer, db.ForeignKey("test_categories.id"), primary_key=True)
+    started_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    completed_at = db.Column(db.DateTime(timezone=True), nullable=True)
     was_corrected = db.Column(db.Boolean, nullable=False, default=False)
 
-    session = db.relationship("UserTestSession", back_populates="session_categories")
+    session = db.relationship("UserTestSession", back_populates="session_categories", overlaps="answers,session")
     category = db.relationship("TestCategory", back_populates="session_categories")
-
-    # all answers for this (session, category)
     answers = db.relationship(
         "UserTestAnswer",
         back_populates="session_category",
         cascade="all, delete-orphan",
+        overlaps="session,answers,category",
     )
 
     def __init__(
@@ -125,32 +132,15 @@ class UserTestAnswer(db.Model):
     __tablename__ = "user_test_answers"
 
     id = db.Column(db.Integer, primary_key=True)
-
-    session_id = db.Column(
-        db.Integer,
-        db.ForeignKey("user_test_sessions.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    category_id = db.Column(
-        db.Integer,
-        db.ForeignKey("test_categories.id"),
-        nullable=False,
-    )
-
+    session_id = db.Column(db.Integer, db.ForeignKey("user_test_sessions.id", ondelete="CASCADE"), nullable=False)
+    category_id = db.Column(db.Integer, db.ForeignKey("test_categories.id"), nullable=False)
     question_number = db.Column(db.Integer, nullable=False)
-    answer_state = db.Column(db.Text, nullable=False)  # '1', '2', '3', 'true', 'false'
+    answer_state = db.Column(db.Text, nullable=False)
     user_answer = db.Column(db.Text, nullable=True)
-    answered_at = db.Column(db.DateTime, default=datetime.utcnow)
+    answered_at = db.Column(db.DateTime(timezone=True), default=utc_now)
 
     __table_args__ = (
-        # one answer per session+category+question
-        db.UniqueConstraint(
-            "session_id",
-            "category_id",
-            "question_number",
-            name="uq_session_category_question",
-        ),
-        # ensure (session_id, category_id) exists in session_test_categories
+        db.UniqueConstraint("session_id", "category_id", "question_number", name="uq_session_category_question"),
         db.ForeignKeyConstraint(
             ["session_id", "category_id"],
             ["session_test_categories.session_id", "session_test_categories.category_id"],
@@ -159,14 +149,14 @@ class UserTestAnswer(db.Model):
         ),
     )
 
-    session = db.relationship("UserTestSession", back_populates="answers")
-    category = db.relationship("TestCategory")  # optional convenience
+    session = db.relationship("UserTestSession", back_populates="answers", overlaps="session_category,answers")
+    category = db.relationship("TestCategory", overlaps="answers,session_category")
     session_category = db.relationship(
         "SessionTestCategory",
         back_populates="answers",
         primaryjoin=("and_(UserTestAnswer.session_id == SessionTestCategory.session_id, UserTestAnswer.category_id == SessionTestCategory.category_id)"),
         viewonly=False,
-        overlaps="category",
+        overlaps="session,answers,category",
     )
 
     def __init__(

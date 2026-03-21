@@ -19,8 +19,10 @@ from .routes.auth_routes import (
 
 from .routes.test_sessions_routes import (
     create_session,
+    create_guest_session,
     list_sessions,
     get_session,
+    update_session,
     complete_session,
     add_or_update_answer,
     list_answers,
@@ -33,7 +35,6 @@ from .routes.test_sessions_routes import (
 auth_bp = Blueprint("auth", __name__)
 test_bp = Blueprint("test_sessions", __name__)
 
-# ---- Auth routes ----
 auth_bp.route("/register", methods=["POST"])(register)
 auth_bp.route("/login", methods=["POST"])(login)
 auth_bp.route("/refresh", methods=["POST"])(refresh)
@@ -43,10 +44,11 @@ auth_bp.route("/logout-all", methods=["POST"])(logout_all)
 auth_bp.route("/me", methods=["GET"])(me)
 auth_bp.route("/test", methods=["GET"])(test_route)
 
-# ---- Test session routes ----
 test_bp.route("/sessions", methods=["POST"])(create_session)
 test_bp.route("/sessions", methods=["GET"])(list_sessions)
+test_bp.route("/sessions/guest", methods=["POST"])(create_guest_session)
 test_bp.route("/sessions/<int:session_id>", methods=["GET"])(get_session)
+test_bp.route("/sessions/<int:session_id>", methods=["PATCH"])(update_session)
 test_bp.route("/sessions/<int:session_id>/complete", methods=["PATCH"])(complete_session)
 test_bp.route("/sessions/<int:session_id>/answers", methods=["POST"])(add_or_update_answer)
 test_bp.route("/sessions/<int:session_id>/answers", methods=["GET"])(list_answers)
@@ -56,19 +58,11 @@ test_bp.route("/sessions/<int:session_id>/categories/<int:category_id>/correct",
 test_bp.route("/sessions/export-pdf", methods=["POST"])(export_session_pdf)
 
 
-# ---- Health routes ----
 @auth_bp.route("/db_cache_health", methods=["GET"])
 def db_redis_health():
-    """
-    Liveness/readiness probe.
-    - DB: executes a lightweight SELECT 1
-    - Redis: PING
-    Returns 200 when all checks pass, 503 otherwise.
-    """
     checks = {}
     status_code = 200
 
-    # DB check
     try:
         db.session.execute(text("SELECT 1"))
         checks["database"] = "ok"
@@ -76,14 +70,11 @@ def db_redis_health():
         checks["database"] = f"error: {type(e).__name__}"
         status_code = 503
 
-    # Redis check
     try:
         r: Redis = current_app.extensions["redis"]
         ok = r.ping()
-        if ok:
-            checks["redis"] = "ok"
-        else:
-            checks["redis"] = "error: ping failed"
+        checks["redis"] = "ok" if ok else "error: ping failed"
+        if not ok:
             status_code = 503
     except Exception as e:
         checks["redis"] = f"error: {type(e).__name__}"
