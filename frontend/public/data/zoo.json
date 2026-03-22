@@ -191,11 +191,11 @@
       "sound_path": "/sounds/testing/zoo/scene.mp3",
       "pictures": [
         { "path": "/images/testing/zoo/story/1.jpg", "display_time": "0:00", "display_type": "insert" },
-        { "path": "/images/testing/zoo/story/2.jpg", "display_time": "0:28", "display_type": "remove_all_and_add" },
+        { "path": "/images/testing/zoo/story/2.jpg", "display_time": "0:22", "display_type": "remove_all_and_add" },
         { "path": "/images/testing/zoo/story/3.jpg", "display_time": "0:32", "display_type": "remove_all_and_add" },
-        { "path": "/images/testing/zoo/story/4.jpg", "display_time": "0:48", "display_type": "remove_all_and_add" },
-        { "path": "/images/testing/zoo/story/5.jpg", "display_time": "1:08", "display_type": "remove_all_and_add" },
-        { "path": "/images/testing/zoo/story/6.jpg", "display_time": "1:27", "display_type": "remove_all_and_add" }
+        { "path": "/images/testing/zoo/story/4.jpg", "display_time": "0:45", "display_type": "remove_all_and_add" },
+        { "path": "/images/testing/zoo/story/5.jpg", "display_time": "1:05", "display_type": "remove_all_and_add" },
+        { "path": "/images/testing/zoo/story/6.jpg", "display_time": "1:23", "display_type": "remove_all_and_add" }
       ]
     }
   }

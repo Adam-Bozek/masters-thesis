@@ -43,13 +43,13 @@ export default function Login({ setMode, successMessage, clearSuccessMessage }: 
   return (
     <div className="content-stack compact-stack w-100 align-items-center text-center">
       <form onSubmit={handleSubmit} noValidate className={styles.formWidth}>
-        <header className="mb-2 text-start">
-          <h2 className="h4 mb-1">Prihlásenie</h2>
+        <header className="mb-2">
+          <h3 className=" mb-1">Prihlásenie</h3>
           <p className="text-secondary small m-0">Pokračovanie v uloženej práci a výsledkoch.</p>
         </header>
 
         {successMessage && (
-          <div className="alert alert-success py-2 text-start mb-2" role="alert" aria-live="polite">
+          <div className="alert alert-success py-2 mb-2" role="alert" aria-live="polite">
             {successMessage}
           </div>
         )}

@@ -257,7 +257,7 @@ export default function RunWithoutRegister() {
   }
 
   return (
-    <div className="content-stack compact-stack w-100 align-items-center">
+    <div className="content-stack compact-stack w-100 align-items-center text-center">
       <div>
         <h3 className="mb-1">Test bez registrácie</h3>
         <div className="d-flex flex-wrap justify-content-center align-items-center gap-2">

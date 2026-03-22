@@ -114,8 +114,8 @@ export default function Register({ setMode, setSuccessMessage }: Props) {
   return (
     <div className="content-stack compact-stack w-100 align-items-center text-center">
       <form onSubmit={handleSubmit} noValidate className={`${styles.formWidth} ${validated ? "was-validated" : ""}`}>
-        <header className="mb-2 text-start">
-          <h2 className="h4 mb-1">Registrácia</h2>
+        <header className="mb-2">
+          <h3 className=" mb-1">Registrácia</h3>
           <p className="text-secondary small mb-2">
             Účet pre ukladanie testov a výsledkov. <span className="status-pill status-pill--done warning-pill">Odporúčame</span>
           </p>
