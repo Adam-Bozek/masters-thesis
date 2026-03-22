@@ -104,8 +104,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         email,
         password,
       });
-
-      router.push("/");
     } catch (error: unknown) {
       throw new Error(extractApiMessage(error, "Registrácia zlyhala. Skúste znova."));
     }

@@ -10,9 +10,10 @@ type Mode = "login" | "register" | "info" | "demo" | "runWithoutRegister";
 
 interface Props {
   setMode: Dispatch<SetStateAction<Mode>>;
+  setSuccessMessage: Dispatch<SetStateAction<string | null>>;
 }
 
-export default function Register({ setMode }: Props) {
+export default function Register({ setMode, setSuccessMessage }: Props) {
   const { register } = useAuth();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -25,6 +26,7 @@ export default function Register({ setMode }: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
+    setSuccessMessage(null);
 
     if (password !== confirm) {
       setErr("Heslá sa nezhodujú.");
@@ -35,6 +37,12 @@ export default function Register({ setMode }: Props) {
 
     try {
       await register(firstName.trim(), lastName.trim(), email.trim(), password);
+      setSuccessMessage("Registrácia prebehla úspešne. Teraz sa môžete prihlásiť.");
+      setFirstName("");
+      setLastName("");
+      setEmail("");
+      setPassword("");
+      setConfirm("");
       setMode("login");
     } catch (error: unknown) {
       if (error instanceof Error && error.message.trim()) {

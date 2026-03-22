@@ -16,15 +16,20 @@ type Mode = "login" | "register" | "info" | "demo" | "runWithoutRegister";
 
 export default function Home() {
   const [mode, setMode] = useState<Mode>("register");
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const openMode = (nextMode: Mode) => {
+    if (nextMode !== "login") {
+      setSuccessMessage(null);
+    }
+    setMode(nextMode);
+  };
 
   return (
     <>
-      {/* add small vertical padding on mobile only */}
       <main className="d-flex align-items-center justify-content-center min-vh-100 py-3 py-lg-0">
-        {/* lighter padding on phones, keep glass look */}
         <div className="container glass p-3 p-lg-5 mx-3">
           <div className="row g-3 g-lg-4 align-items-stretch">
-            {/* use the lg-only height class */}
             <div className={`col-lg-6 d-flex flex-column justify-content-center text-center ${styles.heroCol}`}>
               <h1 className={`${styles.title} mb-2`}>Vitajte! 👋</h1>
               <p className="mb-3">
@@ -65,7 +70,7 @@ export default function Home() {
                   aria-selected={mode === "login"}
                   aria-controls="auth-pane"
                   className={`${styles.segBtn} ${mode === "login" ? styles.active : ""} rounded-4`}
-                  onClick={() => setMode("login")}
+                  onClick={() => openMode("login")}
                 >
                   Prihlásiť
                 </button>
@@ -75,7 +80,7 @@ export default function Home() {
                   aria-selected={mode === "register"}
                   aria-controls="auth-pane"
                   className={`${styles.segBtn} ${mode === "register" ? styles.active : ""} rounded-4`}
-                  onClick={() => setMode("register")}
+                  onClick={() => openMode("register")}
                 >
                   Registrovať
                 </button>
@@ -85,7 +90,7 @@ export default function Home() {
                   aria-selected={mode === "info"}
                   aria-controls="auth-pane"
                   className={`${styles.segBtn} ${mode === "info" ? styles.active : ""} rounded-4`}
-                  onClick={() => setMode("info")}
+                  onClick={() => openMode("info")}
                 >
                   Informácie
                 </button>
@@ -97,7 +102,7 @@ export default function Home() {
                   aria-selected={mode === "demo"}
                   aria-controls="auth-pane"
                   className={`${styles.segBtn} ${mode === "demo" ? styles.active : ""} rounded-4`}
-                  onClick={() => setMode("demo")}
+                  onClick={() => openMode("demo")}
                 >
                   Vyskúšať demo
                 </button>
@@ -107,7 +112,7 @@ export default function Home() {
                   aria-selected={mode === "runWithoutRegister"}
                   aria-controls="auth-pane"
                   className={`${styles.segBtn} ${mode === "runWithoutRegister" ? styles.active : ""} rounded-4`}
-                  onClick={() => setMode("runWithoutRegister")}
+                  onClick={() => openMode("runWithoutRegister")}
                 >
                   Spustiť bez registrácie
                 </button>
@@ -116,9 +121,9 @@ export default function Home() {
 
             <div className="col-lg-6 d-flex flex-column justify-content-center align-items-center text-center">
               {mode === "login" ? (
-                <Login setMode={setMode} />
+                <Login setMode={setMode} successMessage={successMessage} clearSuccessMessage={() => setSuccessMessage(null)} />
               ) : mode === "register" ? (
-                <Register setMode={setMode} />
+                <Register setMode={setMode} setSuccessMessage={setSuccessMessage} />
               ) : mode === "info" ? (
                 <Info />
               ) : mode === "demo" ? (

@@ -10,9 +10,11 @@ type Mode = "login" | "register" | "info" | "demo" | "runWithoutRegister";
 
 interface Props {
   setMode: Dispatch<SetStateAction<Mode>>;
+  successMessage: string | null;
+  clearSuccessMessage: () => void;
 }
 
-export default function Login({ setMode }: Props) {
+export default function Login({ setMode, successMessage, clearSuccessMessage }: Props) {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,6 +24,7 @@ export default function Login({ setMode }: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
+    clearSuccessMessage();
     setPending(true);
 
     try {
@@ -45,6 +48,12 @@ export default function Login({ setMode }: Props) {
           <p className="text-secondary small m-0">Prihláste sa e-mailom a heslom</p>
         </header>
 
+        {successMessage && (
+          <div className="alert alert-success py-2" role="alert" aria-live="polite">
+            {successMessage}
+          </div>
+        )}
+
         <div className="form-floating mb-2">
           <input
             type="email"
@@ -53,7 +62,12 @@ export default function Login({ setMode }: Props) {
             placeholder="name@example.com"
             autoComplete="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              if (successMessage) {
+                clearSuccessMessage();
+              }
+            }}
             required
           />
           <label htmlFor="loginEmail">E-mail</label>
@@ -67,7 +81,12 @@ export default function Login({ setMode }: Props) {
             placeholder="••••••••"
             autoComplete="current-password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              if (successMessage) {
+                clearSuccessMessage();
+              }
+            }}
             required
             minLength={6}
           />
@@ -87,7 +106,13 @@ export default function Login({ setMode }: Props) {
 
       <p className="mt-3 small">
         Nemáte účet?{" "}
-        <button className={styles.linkBtn} onClick={() => setMode("register")}>
+        <button
+          className={styles.linkBtn}
+          onClick={() => {
+            clearSuccessMessage();
+            setMode("register");
+          }}
+        >
           Zaregistrujte sa
         </button>
       </p>
