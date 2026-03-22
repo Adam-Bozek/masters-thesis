@@ -13,22 +13,77 @@ interface Props {
   setSuccessMessage: Dispatch<SetStateAction<string | null>>;
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PASSWORD_RULES = {
+  minLength: 8,
+  upper: /[A-Z]/,
+  lower: /[a-z]/,
+  number: /\d/,
+  special: /[^A-Za-z0-9]/,
+};
+
 export default function Register({ setMode, setSuccessMessage }: Props) {
   const { register } = useAuth();
+
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+
   const [pending, setPending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [validated, setValidated] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const trimmedFirstName = firstName.trim();
+  const trimmedLastName = lastName.trim();
+  const trimmedEmail = email.trim();
+
+  const isEmailValid = EMAIL_REGEX.test(trimmedEmail);
+
+  const passwordChecks = {
+    length: password.length >= PASSWORD_RULES.minLength,
+    upper: PASSWORD_RULES.upper.test(password),
+    lower: PASSWORD_RULES.lower.test(password),
+    number: PASSWORD_RULES.number.test(password),
+    special: PASSWORD_RULES.special.test(password),
+  };
+
+  const isPasswordValid = Object.values(passwordChecks).every(Boolean);
+  const isConfirmValid = confirm.length > 0 && password === confirm;
+
+  const getPasswordError = () => {
+    if (!password) return "Zadajte heslo.";
+    if (!passwordChecks.length) return "Heslo musí mať aspoň 8 znakov.";
+    if (!passwordChecks.upper) return "Heslo musí obsahovať aspoň jedno veľké písmeno.";
+    if (!passwordChecks.lower) return "Heslo musí obsahovať aspoň jedno malé písmeno.";
+    if (!passwordChecks.number) return "Heslo musí obsahovať aspoň jedno číslo.";
+    if (!passwordChecks.special) return "Heslo musí obsahovať aspoň jeden špeciálny znak.";
+    return "";
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setValidated(true);
     setErr(null);
     setSuccessMessage(null);
 
-    if (password !== confirm) {
+    if (!trimmedFirstName || !trimmedLastName) {
+      setErr("Vyplňte meno aj priezvisko.");
+      return;
+    }
+
+    if (!isEmailValid) {
+      setErr("Zadajte platnú e-mailovú adresu.");
+      return;
+    }
+
+    if (!isPasswordValid) {
+      setErr(getPasswordError());
+      return;
+    }
+
+    if (!isConfirmValid) {
       setErr("Heslá sa nezhodujú.");
       return;
     }
@@ -36,13 +91,14 @@ export default function Register({ setMode, setSuccessMessage }: Props) {
     setPending(true);
 
     try {
-      await register(firstName.trim(), lastName.trim(), email.trim(), password);
+      await register(trimmedFirstName, trimmedLastName, trimmedEmail, password);
       setSuccessMessage("Registrácia prebehla úspešne. Teraz sa môžete prihlásiť.");
       setFirstName("");
       setLastName("");
       setEmail("");
       setPassword("");
       setConfirm("");
+      setValidated(false);
       setMode("login");
     } catch (error: unknown) {
       if (error instanceof Error && error.message.trim()) {
@@ -57,7 +113,7 @@ export default function Register({ setMode, setSuccessMessage }: Props) {
 
   return (
     <div className="content-stack compact-stack w-100 align-items-center text-center">
-      <form onSubmit={handleSubmit} noValidate className={styles.formWidth}>
+      <form onSubmit={handleSubmit} noValidate className={`${styles.formWidth} ${validated ? "was-validated" : ""}`}>
         <header className="mb-2 text-start">
           <h2 className="h4 mb-1">Registrácia</h2>
           <p className="text-secondary small mb-2">
@@ -78,8 +134,10 @@ export default function Register({ setMode, setSuccessMessage }: Props) {
                 required
               />
               <label htmlFor="regFirst">Meno</label>
+              <div className="invalid-feedback text-start">Zadajte meno.</div>
             </div>
           </div>
+
           <div className="col-6">
             <div className="form-floating">
               <input
@@ -92,6 +150,7 @@ export default function Register({ setMode, setSuccessMessage }: Props) {
                 required
               />
               <label htmlFor="regLast">Priezvisko</label>
+              <div className="invalid-feedback text-start">Zadajte priezvisko.</div>
             </div>
           </div>
         </div>
@@ -99,7 +158,7 @@ export default function Register({ setMode, setSuccessMessage }: Props) {
         <div className="form-floating mb-2">
           <input
             type="email"
-            className="form-control glass-input compact-input"
+            className={`form-control glass-input compact-input ${validated && trimmedEmail && !isEmailValid ? "is-invalid" : ""}`}
             id="regEmail"
             placeholder="janko.novak@example.com"
             value={email}
@@ -107,6 +166,7 @@ export default function Register({ setMode, setSuccessMessage }: Props) {
             required
           />
           <label htmlFor="regEmail">E-mail</label>
+          <div className="invalid-feedback text-start">Zadajte platnú e-mailovú adresu.</div>
         </div>
 
         <div className="row g-2 mb-2">
@@ -114,33 +174,38 @@ export default function Register({ setMode, setSuccessMessage }: Props) {
             <div className="form-floating">
               <input
                 type="password"
-                className="form-control glass-input compact-input"
+                className={`form-control glass-input compact-input ${validated && password && !isPasswordValid ? "is-invalid" : ""}`}
                 id="regPass"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={PASSWORD_RULES.minLength}
               />
               <label htmlFor="regPass">Heslo</label>
+              <div className="invalid-feedback text-start">{getPasswordError()}</div>
             </div>
           </div>
+
           <div className="col-6">
             <div className="form-floating">
               <input
                 type="password"
-                className="form-control glass-input compact-input"
+                className={`form-control glass-input compact-input ${validated && confirm && !isConfirmValid ? "is-invalid" : ""}`}
                 id="regConfirm"
                 placeholder="••••••••"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 required
-                minLength={6}
+                minLength={PASSWORD_RULES.minLength}
               />
               <label htmlFor="regConfirm">Potvrdiť</label>
+              <div className="invalid-feedback text-start">Heslá sa musia zhodovať.</div>
             </div>
           </div>
         </div>
+
+        <div className="form-text text-start small mt-1">Minimálne 8 znakov, veľké a malé písmeno, číslo a špeciálny znak.</div>
 
         {err && (
           <div className="alert alert-danger py-2 text-start mb-2" role="alert" aria-live="polite">
@@ -155,7 +220,7 @@ export default function Register({ setMode, setSuccessMessage }: Props) {
 
       <p className="mb-0 small text-center">
         Už máte účet?{" "}
-        <button className={styles.linkBtn} onClick={() => setMode("login")}>
+        <button type="button" className={styles.linkBtn} onClick={() => setMode("login")}>
           Prihlásiť sa
         </button>
       </p>

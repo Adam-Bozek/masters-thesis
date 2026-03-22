@@ -679,6 +679,13 @@ function Phase3Testing({
   const showEditInput = uiMode === "editing";
   const showTypingInput = uiMode === "typing";
 
+  const isRecordingMode = uiMode === "recording";
+  const isReviewMode = uiMode === "review";
+  const isTypingMode = uiMode === "typing";
+  const isEditingMode = uiMode === "editing";
+  const hasTranscript = Boolean(liveTranscript.trim());
+  const hasEditableText = Boolean(editableText.trim());
+
   const playAudio = useCallback(async () => {
     const audioElement = audioRef.current;
     if (!audioElement) return;
@@ -1187,7 +1194,7 @@ function Phase3Testing({
         </div>
 
         <div className="w-100 px-2" style={{ paddingTop: 10, paddingBottom: 10 }}>
-          <div className="d-flex flex-column align-items-center" style={{ maxWidth: 1280, margin: "0 auto", gap: 10 }}>
+          <div className="d-flex flex-column align-items-center mb-4" style={{ maxWidth: 1280, margin: "0 auto", gap: 10 }}>
             {!showEditInput && !showTypingInput ? (
               <div className="w-100 text-center" style={{ minHeight: 40 }}>
                 <div className="text-muted" style={{ fontSize: 16, marginBottom: 2 }}>
@@ -1220,70 +1227,78 @@ function Phase3Testing({
             )}
 
             <div className="d-flex flex-wrap justify-content-center gap-2">
-              <button
-                type="button"
-                className={buttonClassName("success")}
-                disabled={!supported || Boolean(speechError) || listening || uiMode !== "recording" || saveBusy}
-                onClick={() => {
-                  pauseAudio();
-                  startListening();
-                }}
-              >
-                <i className="bi bi-mic-fill me-2" />
-                Nahrávať
-              </button>
+              {isRecordingMode && !listening && supported && !speechError && (
+                <button
+                  type="button"
+                  className={buttonClassName("success")}
+                  disabled={saveBusy}
+                  onClick={() => {
+                    pauseAudio();
+                    startListening();
+                  }}
+                >
+                  <i className="bi bi-mic-fill me-2" />
+                  Nahrávať
+                </button>
+              )}
 
-              <button
-                type="button"
-                className={buttonClassName("outline-success")}
-                disabled={!supported || Boolean(speechError) || !listening || uiMode !== "recording" || saveBusy}
-                onClick={() => {
-                  stopListening();
-                  setUiMode("review");
-                }}
-              >
-                <i className="bi bi-stop-fill me-2" />
-                Stop
-              </button>
+              {isRecordingMode && listening && supported && !speechError && (
+                <button
+                  type="button"
+                  className={buttonClassName("outline-success")}
+                  disabled={saveBusy}
+                  onClick={() => {
+                    stopListening();
+                    setUiMode("review");
+                  }}
+                >
+                  <i className="bi bi-stop-fill me-2" />
+                  Stop
+                </button>
+              )}
 
-              <button
-                type="button"
-                className={buttonClassName("outline-primary")}
-                disabled={saveBusy || listening}
-                onClick={() => {
-                  stopListening();
-                  setEditableText(liveTranscript);
-                  setUiMode("typing");
-                }}
-              >
-                <i className="bi bi-keyboard me-2" />
-                Napísať
-              </button>
+              {isRecordingMode && !listening && (
+                <button
+                  type="button"
+                  className={buttonClassName("outline-primary")}
+                  disabled={saveBusy}
+                  onClick={() => {
+                    stopListening();
+                    setEditableText(liveTranscript);
+                    setUiMode("typing");
+                  }}
+                >
+                  <i className="bi bi-keyboard me-2" />
+                  Napísať
+                </button>
+              )}
 
-              <button
-                type="button"
-                className={buttonClassName("outline-secondary")}
-                disabled={uiMode !== "recording" || saveBusy}
-                onClick={() => {
-                  stopListening();
-                  resetTranscript();
-                }}
-              >
-                <i className="bi bi-x-circle me-2" />
-                Vymazať
-              </button>
+              {isRecordingMode && !listening && hasTranscript && (
+                <button
+                  type="button"
+                  className={buttonClassName("outline-secondary")}
+                  disabled={saveBusy}
+                  onClick={() => {
+                    stopListening();
+                    resetTranscript();
+                  }}
+                >
+                  <i className="bi bi-x-circle me-2" />
+                  Vymazať
+                </button>
+              )}
             </div>
 
             {!supported && <div className="text-danger small text-center">Tento prehliadač nepodporuje rozpoznávanie reči. Použite písanie.</div>}
 
             {speechError && <div className="text-danger small text-center">Rozpoznávanie reči nie je dostupné ({speechError}). Použite písanie.</div>}
 
-            {uiMode === "review" && (
+            {isReviewMode && (
               <div className="d-flex flex-wrap justify-content-center gap-2">
                 <button
                   type="button"
                   className={buttonClassName("primary")}
-                  disabled={saveBusy || !liveTranscript}
+                  disabled={saveBusy || !hasTranscript}
                   onClick={() => void finalizeAnswer(activeQuestion, liveTranscript)}
                 >
                   <i className="bi bi-check-lg me-2" />
@@ -1293,7 +1308,7 @@ function Phase3Testing({
                 <button
                   type="button"
                   className={buttonClassName("outline-primary")}
-                  disabled={saveBusy || !liveTranscript}
+                  disabled={saveBusy || !hasTranscript}
                   onClick={() => {
                     setEditableText(liveTranscript);
                     setUiMode("editing");
@@ -1319,7 +1334,7 @@ function Phase3Testing({
               </div>
             )}
 
-            {uiMode === "typing" && (
+            {isTypingMode && (
               <div className="d-flex flex-wrap justify-content-center gap-2">
                 <button
                   type="button"
@@ -1339,7 +1354,7 @@ function Phase3Testing({
                 <button
                   type="button"
                   className={buttonClassName("primary")}
-                  disabled={saveBusy || !editableText.trim()}
+                  disabled={saveBusy || !hasEditableText}
                   onClick={() => void finalizeAnswer(activeQuestion, editableText.trim())}
                 >
                   <i className="bi bi-save2 me-2" />
@@ -1348,7 +1363,7 @@ function Phase3Testing({
               </div>
             )}
 
-            {uiMode === "editing" && (
+            {isEditingMode && (
               <div className="d-flex flex-wrap justify-content-center gap-2">
                 <button
                   type="button"
@@ -1368,7 +1383,7 @@ function Phase3Testing({
                 <button
                   type="button"
                   className={buttonClassName("primary")}
-                  disabled={saveBusy || !editableText.trim()}
+                  disabled={saveBusy || !hasEditableText}
                   onClick={() => void finalizeAnswer(activeQuestion, editableText.trim())}
                 >
                   <i className="bi bi-save2 me-2" />
@@ -1376,11 +1391,6 @@ function Phase3Testing({
                 </button>
               </div>
             )}
-
-            <div className="small text-muted">
-              Otázka {Math.min(activeIndex + 1, remainingQuestions.length)}/{remainingQuestions.length} • Nesprávne pre ďalšiu fázu:{" "}
-              {incorrectQuestions.length}
-            </div>
           </div>
         </div>
       </div>
