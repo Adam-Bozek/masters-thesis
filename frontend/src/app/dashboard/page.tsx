@@ -525,54 +525,63 @@ const DashboardPage = () => {
               </div>
 
               <div className={styles.filterBar}>
-                <div className={styles.filterPills}>
-                  <button
-                    type="button"
-                    className={`status-pill status-pill--info ${styles.filterPill} ${sessionFilter === "all" ? styles.filterPillActive : ""}`}
-                    onClick={() => setSessionFilter("all")}
-                    aria-pressed={sessionFilter === "all"}
-                  >
-                    Všetky <span className={styles.filterCount}>{headerStats.total}</span>
-                  </button>
+                <div className={styles.filterBarTop}>
+                  <div className={styles.filterTabs} role="tablist" aria-label="Filter sedení">
+                    <button
+                      type="button"
+                      className={`${styles.filterTab} ${sessionFilter === "all" ? styles.filterTabActive : ""}`}
+                      onClick={() => setSessionFilter("all")}
+                      aria-pressed={sessionFilter === "all"}
+                    >
+                      <span>Všetky</span>
+                      <span className={styles.filterTabCount}>{headerStats.total}</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    className={`status-pill status-pill--active ${styles.filterPill} ${sessionFilter === "active" ? styles.filterPillActive : ""}`}
-                    onClick={() => setSessionFilter("active")}
-                    aria-pressed={sessionFilter === "active"}
-                  >
-                    Prebieha <span className={styles.filterCount}>{headerStats.active}</span>
-                  </button>
+                    <button
+                      type="button"
+                      className={`${styles.filterTab} ${styles.filterTabActiveState} ${sessionFilter === "active" ? styles.filterTabActive : ""}`}
+                      onClick={() => setSessionFilter("active")}
+                      aria-pressed={sessionFilter === "active"}
+                    >
+                      <span>Prebieha</span>
+                      <span className={styles.filterTabCount}>{headerStats.active}</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    className={`status-pill status-pill--done ${styles.filterPill} ${sessionFilter === "completed" ? styles.filterPillActive : ""}`}
-                    onClick={() => setSessionFilter("completed")}
-                    aria-pressed={sessionFilter === "completed"}
-                  >
-                    Ukončené <span className={styles.filterCount}>{headerStats.done}</span>
-                  </button>
+                    <button
+                      type="button"
+                      className={`${styles.filterTab} ${styles.filterTabDoneState} ${sessionFilter === "completed" ? styles.filterTabActive : ""}`}
+                      onClick={() => setSessionFilter("completed")}
+                      aria-pressed={sessionFilter === "completed"}
+                    >
+                      <span>Ukončené</span>
+                      <span className={styles.filterTabCount}>{headerStats.done}</span>
+                    </button>
+                  </div>
                 </div>
 
-                <div className={styles.filterControls}>
-                  <input
-                    className={`form-control form-control-sm glass-input ${styles.searchInput}`}
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Hľadať (ID alebo dátum)"
-                    aria-label="Hľadať sedenia"
-                  />
+                <div className={styles.filterBarBottom}>
+                  <div className={styles.filterSearchWrap}>
+                    <input
+                      className={`form-control glass-input ${styles.searchInput}`}
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Hľadať podľa ID alebo dátumu"
+                      aria-label="Hľadať sedenia"
+                    />
+                  </div>
 
-                  <select
-                    className={`form-select form-select-sm glass-input ${styles.sortSelect}`}
-                    value={sortMode}
-                    onChange={(e) => setSortMode(e.target.value as SortMode)}
-                    aria-label="Zoradenie sedení"
-                  >
-                    <option value="newest">Najnovšie</option>
-                    <option value="oldest">Najstaršie</option>
-                    <option value="progress">Podľa progresu</option>
-                  </select>
+                  <div className={styles.filterSelectWrap}>
+                    <select
+                      className={`form-select glass-input ${styles.sortSelect}`}
+                      value={sortMode}
+                      onChange={(e) => setSortMode(e.target.value as SortMode)}
+                      aria-label="Zoradenie sedení"
+                    >
+                      <option value="newest">Najnovšie</option>
+                      <option value="oldest">Najstaršie</option>
+                      <option value="progress">Podľa progresu</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             </div>
@@ -581,6 +590,15 @@ const DashboardPage = () => {
               <p className="mb-0">Tu nájdete všetky vaše testovacie sedenia a stav jednotlivých kategórií.</p>
               <div className="small text-muted">
                 <span className="fw-semibold">Poradie:</span> {getOrderDisplay()}
+              </div>
+            </div>
+
+            <div className="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-2">
+              <div className="anon-warning-card anon-grid__wide">
+                <p className="mb-0">
+                  <strong>Upozornenie: </strong> Niektoré položky je potrebné v súbore vyplniť rodičom. Po stiahnutí odporúčame výsledný súbor
+                  skontrolovať.
+                </p>
               </div>
             </div>
           </div>
@@ -652,8 +670,8 @@ const DashboardPage = () => {
                               {catsLoading ? (
                                 <span className="small text-muted">Načítavam kategórie...</span>
                               ) : hasCategories ? (
-                                <span className="small text-muted">
-                                  Dokončené: <span className="fw-semibold">{completedCount}</span>/{categories.length} • Skontrolované:{" "}
+                                <span className="small text-muted me-3">
+                                  Dokončené: <span className="fw-semibold">{completedCount}</span>/{categories.length} • Skontrolované:
                                   <span className="fw-semibold">{correctedCount}</span>/{categories.length}
                                 </span>
                               ) : (
@@ -707,9 +725,6 @@ const DashboardPage = () => {
                               </button>
                             </div>
                             {noteSave.error && <div className="small text-danger mt-2">{noteSave.error}</div>}
-                            {!noteSave.error && noteDisplay && (
-                              <div className="small text-muted mt-2">Aktuálne zobrazené v prehľade: {noteDisplay}</div>
-                            )}
                           </div>
 
                           <div className="mb-3">
@@ -855,10 +870,9 @@ const DashboardPage = () => {
                               })}
                             </ul>
                           )}
-                          {/*{!catsLoading && !catsError && allCategoriesCompleted && (*/}
                           <div className="mt-3 d-flex flex-column gap-2">
-                            <div className="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                              <div className="small text-muted">Všetky kategórie sú dokončené. PDF je pripravené na stiahnutie.</div>
+                            <div className="d-flex flex-wrap align-items-center gap-2">
+                              <div className="small text-muted ms-2"> Stiahnuť vyplnený súbor PDF: </div>
                               <button
                                 type="button"
                                 className="btn btn-success btn-sm"
@@ -875,7 +889,6 @@ const DashboardPage = () => {
                               </div>
                             )}
                           </div>
-                          {/*)} */}
                         </div>
                       </div>
                     </div>

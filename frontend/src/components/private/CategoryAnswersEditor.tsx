@@ -401,9 +401,42 @@ const CategoryAnswersEditor = ({ configPath, sessionId, categoryId }: Props) => 
               </div>
             </div>
 
-            <p className={`${styles.editorLead} mb-0`}>
-              Vľavo je správna odpoveď z konfiguračného JSON. Vedľa je pôvodná odpoveď používateľa, editácia textu a prepínanie stavu.
-            </p>
+            <div className="d-flex flex-column gap-3">
+              <p className={`${styles.editorLead} mb-0`}>
+                Označte pri každom slove, či ho dieťa <strong>rozumie a hovorí</strong>, iba <strong>rozumie</strong>, alebo mu{" "}
+                <strong>nerozumie</strong>.
+              </p>
+
+              <div className="anon-grid" style={{ maxWidth: "100%" }}>
+                <section className="info-card compact-card text-start">
+                  <h4>Rozumie a hovorí</h4>
+                  <p className="mb-0">Dieťa slovo pozná a bežne ho používa.</p>
+                </section>
+
+                <section className="info-card compact-card text-start">
+                  <h4>Rozumie</h4>
+                  <p className="mb-0">Dieťa význam pozná, ale slovo samo nepovie.</p>
+                </section>
+
+                <section className="info-card compact-card text-start">
+                  <h4>Nerozumie</h4>
+                  <p className="mb-0">Dieťa slovo nepozná alebo mu nerozumie.</p>
+                </section>
+
+                <section className="info-card compact-card text-start">
+                  <h4>Započítajte aj detskú výslovnosť</h4>
+                  <p className="mb-0">Slovo označte aj vtedy, ak ho dieťa vyslovuje inak, napríklad „čimy“ namiesto „čižmy“.</p>
+                </section>
+
+                <section className="info-card compact-card text-start anon-grid__wide">
+                  <h4>Dôležité</h4>
+                  <p className="mb-0">
+                    Nemusí ovládať všetky slová. Zohľadnite aj výrazy používané doma. Ak doma hovoríte napríklad „gauč“, stále označte slovo
+                    „sedačka“.
+                  </p>
+                </section>
+              </div>
+            </div>
           </div>
 
           {pageError && (

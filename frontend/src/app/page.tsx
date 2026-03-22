@@ -22,7 +22,7 @@ const NAV_ITEMS: { key: Mode; label: string }[] = [
 ];
 
 export default function Home() {
-  const [mode, setMode] = useState<Mode>("info");
+  const [mode, setMode] = useState<Mode>("register");
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const openMode = (nextMode: Mode) => {
