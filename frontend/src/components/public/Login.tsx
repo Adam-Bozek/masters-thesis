@@ -41,15 +41,15 @@ export default function Login({ setMode, successMessage, clearSuccessMessage }: 
   };
 
   return (
-    <>
+    <div className="content-stack compact-stack w-100 align-items-center text-center">
       <form onSubmit={handleSubmit} noValidate className={styles.formWidth}>
-        <header className="mb-3">
-          <h2 className="h4 mb-1">Vitajte späť</h2>
-          <p className="text-secondary small m-0">Prihláste sa e-mailom a heslom</p>
+        <header className="mb-2 text-start">
+          <h2 className="h4 mb-1">Prihlásenie</h2>
+          <p className="text-secondary small m-0">Pokračovanie v uloženej práci a výsledkoch.</p>
         </header>
 
         {successMessage && (
-          <div className="alert alert-success py-2" role="alert" aria-live="polite">
+          <div className="alert alert-success py-2 text-start mb-2" role="alert" aria-live="polite">
             {successMessage}
           </div>
         )}
@@ -57,7 +57,7 @@ export default function Login({ setMode, successMessage, clearSuccessMessage }: 
         <div className="form-floating mb-2">
           <input
             type="email"
-            className="form-control glass-input"
+            className="form-control glass-input compact-input"
             id="loginEmail"
             placeholder="name@example.com"
             autoComplete="email"
@@ -73,10 +73,10 @@ export default function Login({ setMode, successMessage, clearSuccessMessage }: 
           <label htmlFor="loginEmail">E-mail</label>
         </div>
 
-        <div className="form-floating mb-3">
+        <div className="form-floating mb-2">
           <input
             type="password"
-            className="form-control glass-input"
+            className="form-control glass-input compact-input"
             id="loginPassword"
             placeholder="••••••••"
             autoComplete="current-password"
@@ -94,17 +94,17 @@ export default function Login({ setMode, successMessage, clearSuccessMessage }: 
         </div>
 
         {err && (
-          <div className="alert alert-danger py-2" role="alert" aria-live="polite">
+          <div className="alert alert-danger py-2 text-start mb-2" role="alert" aria-live="polite">
             {err}
           </div>
         )}
 
-        <button type="submit" className={`${styles.segBtn} ${styles.active} w-75 rounded-4`} disabled={pending}>
+        <button type="submit" className={`${styles.segBtn} ${styles.active} w-100 rounded-4`} disabled={pending}>
           {pending ? "Prihlasujem..." : "Prihlásiť sa"}
         </button>
       </form>
 
-      <p className="mt-3 small">
+      <p className="mb-0 small text-center">
         Nemáte účet?{" "}
         <button
           className={styles.linkBtn}
@@ -113,9 +113,9 @@ export default function Login({ setMode, successMessage, clearSuccessMessage }: 
             setMode("register");
           }}
         >
-          Zaregistrujte sa
+          Registrovať
         </button>
       </p>
-    </>
+    </div>
   );
 }

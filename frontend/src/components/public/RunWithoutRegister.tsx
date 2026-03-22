@@ -127,12 +127,12 @@ export default function RunWithoutRegister() {
       const nextGuestToken = String(response.data?.guest_token ?? "");
 
       if (!Number.isFinite(nextSessionId) || !nextGuestToken) {
-        throw new Error("Nepodarilo sa vytvoriť anonymné testovanie.");
+        throw new Error("Nepodarilo sa spustiť anonymné testovanie.");
       }
 
       const isValid = await validateSession(nextSessionId, nextGuestToken);
       if (!isValid) {
-        throw new Error("Hosťovská relácia sa nepodarila overiť.");
+        throw new Error("Nepodarilo sa overiť anonymnú reláciu.");
       }
 
       saveGuestState(nextSessionId, nextGuestToken, 0);
@@ -235,7 +235,7 @@ export default function RunWithoutRegister() {
   if (!ready) {
     return (
       <div className="w-100 p-4 rounded-4 border bg-white shadow-sm">
-        <div className="spinner-border" role="status" aria-label="Načítavam" />
+        <div className="spinner-border" role="status" aria-label="Načítava sa" />
       </div>
     );
   }
@@ -257,36 +257,79 @@ export default function RunWithoutRegister() {
   }
 
   return (
-    <div className="w-100 p-4 rounded-4 border bg-white shadow-sm">
-      <h3 className="mb-2">Test bez registrácie</h3>
-      <p className="text-muted mb-3">Anonymné testovanie sa ukladá do databázy a po 1 hodine neaktivity sa automaticky odstráni.</p>
-      {completed && sessionId ? (
-        <div className="d-flex flex-column gap-3">
-          <div className="alert alert-success mb-0">Testovanie bolo dokončené.</div>
-          <div className="d-flex flex-wrap gap-2">
-            <button className="btn btn-primary rounded-pill px-4" onClick={() => void exportPdf()} disabled={exporting}>
-              {exporting ? "Generujem PDF..." : "Stiahnuť PDF"}
-            </button>
-            <button className="btn btn-outline-secondary rounded-pill px-4" onClick={resetRun}>
-              Zavrieť
-            </button>
-          </div>
+    <div className="content-stack compact-stack w-100 align-items-center">
+      <div>
+        <h3 className="mb-1">Test bez registrácie</h3>
+        <div className="d-flex flex-wrap justify-content-center align-items-center gap-2">
+          <p className="lead-muted compact-lead mb-0">Anonymné spustenie bez účtu a bez dlhodobého uloženia údajov.</p>
+          <span className="status-pill status-pill--active warning-pill">Neodporúčame</span>
         </div>
-      ) : (
-        <div className="d-flex flex-column gap-3">
-          {errorMessage ? <div className="alert alert-danger mb-0">{errorMessage}</div> : null}
-          <div className="d-flex flex-wrap gap-2">
-            <button className="btn btn-primary rounded-pill px-4" onClick={() => void startRun()} disabled={starting}>
-              {starting ? "Spúšťam..." : sessionId ? "Pokračovať v testovaní" : "Spustiť testovanie"}
-            </button>
-            {sessionId ? (
-              <button className="btn btn-outline-secondary rounded-pill px-4" onClick={resetRun}>
-                Zrušiť rozpracované testovanie
+      </div>
+
+      <div className="anon-grid">
+        <section className="info-card compact-card text-start">
+          <h4>Anonymne</h4>
+          <p>Vytvorí sa dočasná relácia len pre tento priebeh.</p>
+        </section>
+
+        <section className="info-card compact-card text-start">
+          <h4>Limit</h4>
+          <p>Dáta sa po 1 hodine neaktivity odstránia.</p>
+        </section>
+
+        <section className="info-card compact-card text-start anon-grid__wide">
+          <h4>Výstup</h4>
+          <p className="mb-1">Po dokončení je možné exportovať výsledok do PDF.</p>
+          <p>
+            <strong>Upozornenie: </strong> Niektoré položky je potrebné vyplniť rodičom. Po stiahnutí odporúčame výsledný súbor skontrolovať.
+          </p>
+        </section>
+
+        <div className="anon-warning-card anon-grid__wide">
+          <p className="mb-0">
+            <strong>Upozornenie: </strong> Testovanie bez registrácie neodporúčame. Priebežné výsledky sa neukladajú, preto je potrebné test dokončiť
+            v jednej relácii - vyplnenie testu trvá dlhý čas. Ak chcete test vyplniť po častiach,, vytvorte si účet.
+          </p>
+        </div>
+
+        {completed && sessionId ? (
+          <div className="d-flex flex-column gap-3 align-items-center w-100 anon-grid__wide">
+            <div className="alert alert-success mb-0 p-1" style={{ maxWidth: 620 }}>
+              Testovanie bolo dokončené.
+            </div>
+
+            <div className="d-flex flex-wrap gap-2 justify-content-center">
+              <button className="btn btn-primary rounded-pill px-4" onClick={() => void exportPdf()} disabled={exporting}>
+                {exporting ? "Generujem PDF..." : "Stiahnuť PDF"}
               </button>
-            ) : null}
+
+              <button className="btn btn-outline-secondary rounded-pill px-4" onClick={resetRun}>
+                Zavrieť
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="d-flex flex-column gap-3 align-items-center w-100 anon-grid__wide">
+            {errorMessage ? (
+              <div className="alert alert-danger mb-0 w-100" style={{ maxWidth: 620 }}>
+                {errorMessage}
+              </div>
+            ) : null}
+
+            <div className="d-flex flex-wrap gap-2 justify-content-center">
+              <button className="btn btn-primary rounded-pill px-4" onClick={() => void startRun()} disabled={starting}>
+                {starting ? "Spúšťam..." : sessionId ? "Pokračovať v testovaní" : "Spustiť testovanie"}
+              </button>
+
+              {sessionId ? (
+                <button className="btn btn-outline-secondary rounded-pill px-4" onClick={resetRun}>
+                  Zrušiť rozpracované testovanie
+                </button>
+              ) : null}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

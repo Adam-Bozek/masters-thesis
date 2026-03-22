@@ -56,43 +56,50 @@ export default function Register({ setMode, setSuccessMessage }: Props) {
   };
 
   return (
-    <>
+    <div className="content-stack compact-stack w-100 align-items-center text-center">
       <form onSubmit={handleSubmit} noValidate className={styles.formWidth}>
-        <header className="mb-3">
-          <h2 className="h4 mb-1">Vytvorte si účet</h2>
-          <p className="text-secondary small m-0">Zaregistrujte sa e-mailom a heslom</p>
+        <header className="mb-2 text-start">
+          <h2 className="h4 mb-1">Registrácia</h2>
+          <p className="text-secondary small mb-2">
+            Účet pre ukladanie testov a výsledkov. <span className="status-pill status-pill--done warning-pill">Odporúčame</span>
+          </p>
         </header>
 
-        <div className="form-floating mb-2">
-          <input
-            type="text"
-            className="form-control glass-input"
-            id="regFirst"
-            placeholder="Janko"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-            required
-          />
-          <label htmlFor="regFirst">Meno</label>
-        </div>
-
-        <div className="form-floating mb-2">
-          <input
-            type="text"
-            className="form-control glass-input"
-            id="regLast"
-            placeholder="Novák"
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
-            required
-          />
-          <label htmlFor="regLast">Priezvisko</label>
+        <div className="row g-2 mb-2">
+          <div className="col-6">
+            <div className="form-floating">
+              <input
+                type="text"
+                className="form-control glass-input compact-input"
+                id="regFirst"
+                placeholder="Meno"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                required
+              />
+              <label htmlFor="regFirst">Meno</label>
+            </div>
+          </div>
+          <div className="col-6">
+            <div className="form-floating">
+              <input
+                type="text"
+                className="form-control glass-input compact-input"
+                id="regLast"
+                placeholder="Priezvisko"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                required
+              />
+              <label htmlFor="regLast">Priezvisko</label>
+            </div>
+          </div>
         </div>
 
         <div className="form-floating mb-2">
           <input
             type="email"
-            className="form-control glass-input"
+            className="form-control glass-input compact-input"
             id="regEmail"
             placeholder="janko.novak@example.com"
             value={email}
@@ -102,51 +109,56 @@ export default function Register({ setMode, setSuccessMessage }: Props) {
           <label htmlFor="regEmail">E-mail</label>
         </div>
 
-        <div className="form-floating mb-2">
-          <input
-            type="password"
-            className="form-control glass-input"
-            id="regPass"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-          />
-          <label htmlFor="regPass">Heslo</label>
-        </div>
-
-        <div className="form-floating mb-3">
-          <input
-            type="password"
-            className="form-control glass-input"
-            id="regConfirm"
-            placeholder="••••••••"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            required
-            minLength={6}
-          />
-          <label htmlFor="regConfirm">Zopakujte heslo</label>
+        <div className="row g-2 mb-2">
+          <div className="col-6">
+            <div className="form-floating">
+              <input
+                type="password"
+                className="form-control glass-input compact-input"
+                id="regPass"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+              <label htmlFor="regPass">Heslo</label>
+            </div>
+          </div>
+          <div className="col-6">
+            <div className="form-floating">
+              <input
+                type="password"
+                className="form-control glass-input compact-input"
+                id="regConfirm"
+                placeholder="••••••••"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                required
+                minLength={6}
+              />
+              <label htmlFor="regConfirm">Potvrdiť</label>
+            </div>
+          </div>
         </div>
 
         {err && (
-          <div className="alert alert-danger py-2" role="alert" aria-live="polite">
+          <div className="alert alert-danger py-2 text-start mb-2" role="alert" aria-live="polite">
             {err}
           </div>
         )}
 
-        <button type="submit" className={`${styles.segBtn} ${styles.active} w-75 rounded-4`} disabled={pending}>
+        <button type="submit" className={`${styles.segBtn} ${styles.active} w-100 rounded-4`} disabled={pending}>
           {pending ? "Registrujem..." : "Vytvoriť účet"}
         </button>
       </form>
 
-      <p className="mt-2 small">
+      <p className="mb-0 small text-center">
         Už máte účet?{" "}
         <button className={styles.linkBtn} onClick={() => setMode("login")}>
           Prihlásiť sa
         </button>
       </p>
-    </>
+    </div>
   );
 }

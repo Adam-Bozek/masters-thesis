@@ -1,6 +1,3 @@
-/* home.module.css (replace file) */
-
-/* segmented (remove color-mix so you don't get black borders in unsupported browsers) */
 .segmented{
   width: max-content;
   display: inline-flex;
@@ -16,18 +13,129 @@
     0 10px 22px rgba(15,23,42,0.10);
 }
 
+.viewport{
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+}
+
+.frameWrap{
+  width: 100%;
+}
+
+.frame{
+  padding: 14px;
+}
+
+.layout{
+  display: grid;
+  grid-template-columns: minmax(300px, 0.95fr) minmax(340px, 1.05fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.heroPane,
+.panelPane{
+  min-height: 0;
+}
+
+.heroPane{
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 12px;
+}
+
+.panelPane{
+  display: grid;
+  grid-template-rows: auto auto;
+  align-content: start;
+  gap: 10px;
+}
+
+.panelCard{
+  border-radius: 1rem;
+  border: 1px solid rgba(255,255,255,0.42);
+  background: rgba(255,255,255,0.14);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10), 0 10px 24px rgba(15,23,42,0.08);
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.eyebrow{
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(11, 40, 82, 0.68);
+}
+
+.title{
+  font-size: clamp(3rem, 5vw + 1rem, 6rem);
+  font-weight: 800;
+  line-height: 1.02;
+  margin-bottom: 10px;
+}
+
+.heroText{
+  margin: 0;
+  max-width: 34rem;
+  color: rgba(11, 40, 82, 0.84);
+  line-height: 1.45;
+  font-size: 1rem;
+}
+
+.heroCards{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.metaRow{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  font-size: 0.9rem;
+  color: rgba(11, 40, 82, 0.78);
+}
+
+.contactRow{
+  margin: 0;
+  font-size: 0.9rem;
+  color: rgba(11, 40, 82, 0.78);
+}
+
+.navGrid{
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .segBtn{
   appearance: none;
   border: 0;
-  padding: 8px 14px;
+  padding: 10px 12px;
   font-weight: 700;
   background: transparent;
   color: #0b2852;
-  border-radius: 999px;
+  border-radius: 14px;
   transition: transform .12s ease, background-color .2s ease, box-shadow .2s ease;
   outline: none;
   touch-action: manipulation;
-  line-height: 1;
+  line-height: 1.1;
+}
+
+.navBtn{
+  border: 1px solid rgba(255,255,255,0.42);
+  background: rgba(255,255,255,0.14);
+  min-height: 46px;
+  font-size: 0.92rem;
 }
 
 .segBtn:hover{ transform: translateY(-1px); }
@@ -37,20 +145,6 @@
   box-shadow:
     inset 0 0 0 1px rgba(255,255,255,0.55),
     0 10px 18px rgba(15,23,42,0.12);
-}
-
-/* reduce the “giant” dashboard title */
-.dashTitle{
-  font-size: clamp(1.8rem, 2.4vw + 1rem, 3.6rem);
-  font-weight: 800;
-  letter-spacing: 0.2px;
-  line-height: 1.02;
-}
-
-.title{
-  font-size: clamp(2rem, 5vw + 0.8rem, 4.2rem);
-  font-weight: 800;
-  letter-spacing: 0.1px;
 }
 
 .linkBtn{
@@ -63,105 +157,71 @@
 }
 
 .formWidth{
-  inline-size: min(100%, 380px);
+  inline-size: min(100%, 400px);
   margin-inline: auto;
 }
 
-@media (min-width: 992px){
-  .heroCol{ min-height: 71dvh; }
-}
-
-@media (max-width: 360px){
-  .title{ font-size: 1.9rem; }
-}
-
-/* home.module.css (add these; keep your other styles) */
-
-.filterBar{
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-  align-items: stretch;
-}
-
-.filterPills{
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-  justify-content: flex-start;
-}
-
-.filterPill{
-  border: 0;
-  cursor: pointer;
-  user-select: none;
-  transition: transform .12s ease, box-shadow .2s ease, opacity .2s ease;
-  opacity: 0.78;
-}
-
-.filterPill:hover{
-  transform: translateY(-1px);
-  opacity: 0.92;
-}
-
-.filterPillActive{
-  opacity: 1;
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.55),
-    0 12px 22px rgba(15,23,42,0.12);
-}
-
-.filterCount{
-  margin-left: 0.45rem;
-  padding: 0.05rem 0.45rem;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.35);
-  border: 1px solid rgba(255,255,255,0.55);
-  font-weight: 800;
-  line-height: 1.1;
-}
-
-.filterControls{
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
-  justify-content: flex-start;
-}
-
-.searchInput{
-  width: min(340px, 100%);
-}
-
-.sortSelect{
-  width: min(190px, 100%);
-}
-
-@media (min-width: 992px){
-  .filterBar{
-    align-items: flex-end;
+@media (max-width: 991px){
+  .viewport{
+    padding: 8px;
+    align-items: stretch;
   }
-  .filterControls{
-    justify-content: flex-end;
+
+  .frame{
+    min-height: calc(100dvh - 16px);
+    padding: 10px;
+  }
+
+  .layout{
+    min-height: calc(100dvh - 36px);
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .heroPane{
+    gap: 10px;
+    padding: 4px;
+  }
+
+  .panelPane{
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .panelCard{
+    min-height: 0;
+    padding: 12px;
+  }
+
+  .navGrid{
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-/* ===== Flat editor finish ===== */
-.editorPage :global(.glass){
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(148, 163, 184, 0.26);
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.10),
-    0 10px 24px rgba(15,23,42,0.08);
-}
+@media (max-width: 576px){
+  .title{ font-size: 1.8rem; }
 
-.editorLead{
-  max-width: 70ch;
-  color: rgba(11, 40, 82, 0.82);
-  font-size: 1rem;
-  line-height: 1.65;
-}
+  .heroText,
+  .metaRow,
+  .contactRow{
+    font-size: 0.86rem;
+  }
 
-.editorRow{
-  background: rgba(255,255,255,0.18) !important;
-}
+  .heroCards{
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
 
+  .navGrid{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .segBtn{
+    padding: 9px 10px;
+    font-size: 0.88rem;
+  }
+
+  .formWidth{
+    inline-size: 100%;
+  }
+}
