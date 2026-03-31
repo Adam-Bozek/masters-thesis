@@ -764,10 +764,6 @@ function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, gue
                   );
                 })}
               </div>
-
-              <div className="text-center text-muted small mt-3">
-                Otázka {Math.min(activeIndex + 1, remainingQuestions.length)}/{remainingQuestions.length}
-              </div>
             </div>
           </div>
         </div>

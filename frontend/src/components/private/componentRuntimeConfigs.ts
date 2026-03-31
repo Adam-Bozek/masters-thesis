@@ -125,7 +125,7 @@ export type TestingComponentRuntimeConfigs = {
  * -----------------------------------------------------------------------------------------------*/
 
 export const controllerRuntimeConfig: ControllerRuntimeConfig = {
-  categoryCooldownHours: 4,
+  categoryCooldownHours: 3,
   defaultRedirectPath: "/dashboard",
   tolerateMarketplaceTypo: true,
   noAnswersMessageFragment: "no answers",

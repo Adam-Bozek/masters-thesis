@@ -113,6 +113,95 @@ function clampPercentage(value: number): number {
   return Math.min(100, Math.max(0, value));
 }
 
+type ViewportSize = {
+  width: number;
+  height: number;
+};
+
+type ImageStageLayout = {
+  gridStyle: React.CSSProperties;
+  itemStyle: React.CSSProperties;
+  imageStyle: React.CSSProperties;
+};
+
+function getBestGridColumnCount(displayedImageCount: number, availableWidth: number, availableHeight: number, gapPx: number): number {
+  if (displayedImageCount <= 1 || availableWidth <= 0 || availableHeight <= 0) {
+    return 1;
+  }
+
+  const maxColumns = Math.min(displayedImageCount, availableWidth < 700 ? 2 : availableWidth < 1200 ? 3 : 4);
+
+  let bestColumnCount = 1;
+  let bestScore = -1;
+
+  for (let columnCount = 1; columnCount <= maxColumns; columnCount += 1) {
+    const rowCount = Math.ceil(displayedImageCount / columnCount);
+    const cellWidth = (availableWidth - gapPx * (columnCount - 1)) / columnCount;
+    const cellHeight = (availableHeight - gapPx * (rowCount - 1)) / rowCount;
+    const score = Math.min(cellWidth, cellHeight);
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestColumnCount = columnCount;
+    }
+  }
+
+  return bestColumnCount;
+}
+
+function getImageStageLayout(displayedImageCount: number, viewportSize: ViewportSize, runtimeConfig: SceneBuilderRuntimeConfig): ImageStageLayout {
+  const stagePaddingX = 16;
+  const stageTopPadding = 88;
+  const stageBottomPadding = 64;
+  const gapPx = 12;
+
+  const availableWidth = Math.max(0, viewportSize.width - stagePaddingX * 2);
+  const availableHeight = Math.max(0, viewportSize.height - stageTopPadding - stageBottomPadding);
+  const safeDisplayedImageCount = Math.max(1, displayedImageCount);
+  const columnCount = getBestGridColumnCount(safeDisplayedImageCount, availableWidth, availableHeight, gapPx);
+  const rowCount = Math.ceil(safeDisplayedImageCount / columnCount);
+  const isSingleImage = safeDisplayedImageCount <= 1;
+  const isDualImage = safeDisplayedImageCount === 2;
+
+  return {
+    gridStyle: {
+      width: "100%",
+      height: "100%",
+      padding: `${stageTopPadding}px ${stagePaddingX}px ${stageBottomPadding}px`,
+      display: "grid",
+      gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+      gridTemplateRows: `repeat(${rowCount}, minmax(0, 1fr))`,
+      gap: `${gapPx}px`,
+      overflow: "hidden",
+    },
+    itemStyle: {
+      minWidth: 0,
+      minHeight: 0,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      overflow: "hidden",
+    },
+    imageStyle: {
+      width: isSingleImage || isDualImage ? "auto" : "100%",
+      height: isSingleImage || isDualImage ? "auto" : "100%",
+      maxHeight: isSingleImage
+        ? `min(100%, ${runtimeConfig.singleImageMaxHeight})`
+        : isDualImage
+          ? `min(100%, ${runtimeConfig.dualImageMaxHeight})`
+          : "100%",
+      maxWidth: isSingleImage
+        ? `min(100%, ${runtimeConfig.singleImageMaxWidth})`
+        : isDualImage
+          ? `min(100%, ${runtimeConfig.dualImageMaxWidth})`
+          : "100%",
+      objectFit: "contain",
+      userSelect: "none",
+      pointerEvents: "none",
+    },
+  };
+}
+
 function getDisplayedImageStyle(displayedImageCount: number, runtimeConfig: SceneBuilderRuntimeConfig): React.CSSProperties {
   const isSingleImage = displayedImageCount <= 1;
   const isDualImage = displayedImageCount === 2;
@@ -246,6 +335,7 @@ function SceneBuilder({ config, onComplete, onSkip, debug = false, runtimeConfig
   const [needsUserGesture, setNeedsUserGesture] = useState(false);
   const [currentTimeSeconds, setCurrentTimeSeconds] = useState(0);
   const [durationSeconds, setDurationSeconds] = useState(0);
+  const [viewportSize, setViewportSize] = useState<ViewportSize>({ width: 0, height: 0 });
 
   const stopAnimationLoop = useCallback(() => {
     if (animationFrameRef.current != null) {
@@ -382,6 +472,22 @@ function SceneBuilder({ config, onComplete, onSkip, debug = false, runtimeConfig
   }, [config.pictures]);
 
   useEffect(() => {
+    const updateViewportSize = () => {
+      setViewportSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    updateViewportSize();
+    window.addEventListener("resize", updateViewportSize);
+
+    return () => {
+      window.removeEventListener("resize", updateViewportSize);
+    };
+  }, []);
+
+  useEffect(() => {
     stopAnimationLoop();
     resetPlaybackTimeline();
     setNeedsUserGesture(false);
@@ -424,14 +530,28 @@ function SceneBuilder({ config, onComplete, onSkip, debug = false, runtimeConfig
     [displayedImagePaths.length, runtimeConfig],
   );
 
+  const imageStageLayout = useMemo(
+    () => getImageStageLayout(displayedImagePaths.length, viewportSize, runtimeConfig),
+    [displayedImagePaths.length, runtimeConfig, viewportSize],
+  );
+
   const progressPercentage = durationSeconds > 0 ? clampPercentage((currentTimeSeconds / durationSeconds) * 100) : 0;
 
   return (
     <div className="position-fixed top-0 start-0 w-100 h-100 overflow-hidden bg-white" style={{ touchAction: "manipulation" }}>
       <div className="position-relative w-100 h-100 d-flex align-items-center justify-content-center">
-        <div className="w-100 h-100 d-flex flex-wrap align-items-center justify-content-center gap-3 p-3">
+        <div style={imageStageLayout.gridStyle}>
           {displayedImagePaths.map((sourcePath, index) => (
-            <img key={`${sourcePath}-${index}`} src={sourcePath} alt="" style={displayedImageStyle} />
+            <div key={`${sourcePath}-${index}`} style={imageStageLayout.itemStyle}>
+              <img
+                src={sourcePath}
+                alt=""
+                style={{
+                  ...displayedImageStyle,
+                  ...imageStageLayout.imageStyle,
+                }}
+              />
+            </div>
           ))}
         </div>
 

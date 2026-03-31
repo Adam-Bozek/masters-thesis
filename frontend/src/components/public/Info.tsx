@@ -13,7 +13,7 @@ export default function Info() {
       <div className="anon-grid">
         <section className="info-card compact-card text-start">
           <h4>Účel</h4>
-          <p>Aplikácia slúži na orientačný skríning komunikačných schopností dieťaťa.</p>
+          <p>Jedná o experimentálnu aplikáciu, ktorá ukazuje možnosti gamifikácie a nenahrádza štandardný TEKOS</p>
         </section>
 
         <section className="info-card compact-card text-start">
@@ -27,12 +27,17 @@ export default function Info() {
         </section>
 
         <section className="info-card compact-card text-start anon-grid__wide">
-          <h4>Pred začiatkom</h4>
-          <ul className="feature-list compact-list mb-0">
-            {INFO_ITEMS.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
+          <h4>Publikácia TEKOS II skr. ver.</h4>
+          <p>
+            Publikácia je dostupná na webe:{" "}
+            <a
+              href="https://detskarec.sk/uploads/documents/5/projekty-tekos-priloha-1-kapalkova-kaletov.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              https://detskarec.sk/uploads/documents/5/projekty-tekos-priloha-1-kapalkova-kaletov.pdf
+            </a>
+          </p>
         </section>
 
         <section className="info-card compact-card text-start anon-grid__wide">
