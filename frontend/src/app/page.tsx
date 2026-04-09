@@ -14,8 +14,8 @@ import styles from "@/components/css/home.module.css";
 type Mode = "login" | "register" | "info" | "demo" | "runWithoutRegister";
 
 const NAV_ITEMS: { key: Mode; label: string }[] = [
-  { key: "register", label: "Registrácia" },
   { key: "login", label: "Prihlásenie" },
+  { key: "register", label: "Registrácia" },
   { key: "demo", label: "Demo" },
   { key: "runWithoutRegister", label: "Bez registrácie" },
   { key: "info", label: "Info" },
@@ -115,6 +115,9 @@ export default function Home() {
                 ) : null}
               </div>
             </section>
+          </div>
+          <div className="text-center mt-3">
+            <p className="text-secondary">Copyright © {new Date().getFullYear()} KPS TUKE. Všetky práva vyhradené.</p>
           </div>
         </section>
       </div>

@@ -29,23 +29,13 @@ export default function Info() {
         <section className="info-card compact-card text-start anon-grid__wide">
           <h4>Publikácia TEKOS II skr. ver.</h4>
           <p>
-            Publikácia je dostupná na webe:{" "}
+            Test bol vytvorený na zájklade tejto publikacie:
             <a
               href="https://detskarec.sk/uploads/documents/5/projekty-tekos-priloha-1-kapalkova-kaletov.pdf"
               target="_blank"
               rel="noopener noreferrer"
             >
               https://detskarec.sk/uploads/documents/5/projekty-tekos-priloha-1-kapalkova-kaletov.pdf
-            </a>
-          </p>
-        </section>
-
-        <section className="info-card compact-card text-start anon-grid__wide">
-          <h4>Zdrojový kód</h4>
-          <p>
-            Github:{" "}
-            <a href="https://github.com/Adam-Bozek/masters-thesis" target="_blank" rel="noopener noreferrer">
-              https://github.com/Adam-Bozek/masters-thesis
             </a>
           </p>
         </section>
