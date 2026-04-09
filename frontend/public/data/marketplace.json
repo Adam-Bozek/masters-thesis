@@ -2,7 +2,7 @@
   {
     "questionId": 1,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je ananás?",
+    "questionText": "Klikni na obrázok na ktorom je ananás.",
     "questionAudioPath": "/sounds/testing/marketplace/1.mp3",
     "acceptedTranscripts": ["ananás", "ananas", "nanas", "ananásik", "ananasik", "nanasik"],
     "answers": [
@@ -17,7 +17,7 @@
   {
     "questionId": 2,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je čokoláda?",
+    "questionText": "Klikni na obrázok na ktorom je čokoláda.",
     "questionAudioPath": "/sounds/testing/marketplace/2.mp3",
     "acceptedTranscripts": ["čokoláda", "cokolada", "čoko", "coko", "čokoládka", "cokoladka", "čokoládička", "cokoladicka"],
     "answers": [
@@ -32,7 +32,7 @@
   {
     "questionId": 3,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je lekvár?",
+    "questionText": "Klikni na obrázok na ktorom je lekvár.",
     "questionAudioPath": "/sounds/testing/marketplace/3.mp3",
     "acceptedTranscripts": ["lekvár", "lekvar", "džem", "dzem", "lekvárik", "lekvarik", "džemík", "dzemik"],
     "answers": [
@@ -47,7 +47,7 @@
   {
     "questionId": 4,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je hrach?",
+    "questionText": "Klikni na obrázok na ktorom je hrach.",
     "questionAudioPath": "/sounds/testing/marketplace/4.mp3",
     "acceptedTranscripts": ["hrach", "hrách", "hrašok", "hrasok", "hrášok", "hrachy", "hrášky", "hrasky", "hrašky"],
     "answers": [
@@ -62,7 +62,7 @@
   {
     "questionId": 5,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je klobása?",
+    "questionText": "Klikni na obrázok na ktorom je klobása.",
     "questionAudioPath": "/sounds/testing/marketplace/5.mp3",
     "acceptedTranscripts": ["klobása", "klobasa", "klobáska", "klobaska", "klobásky", "klobasky"],
     "answers": [
@@ -77,7 +77,7 @@
   {
     "questionId": 6,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je mäso?",
+    "questionText": "Klikni na obrázok na ktorom je mäso.",
     "questionAudioPath": "/sounds/testing/marketplace/6.mp3",
     "acceptedTranscripts": ["mäso", "maso", "mäsko", "masko", "mäsíčko", "masicko"],
     "answers": [
@@ -92,7 +92,7 @@
   {
     "questionId": 7,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je papier?",
+    "questionText": "Klikni na obrázok na ktorom je papier.",
     "questionAudioPath": "/sounds/testing/marketplace/7.mp3",
     "acceptedTranscripts": ["papier", "papir", "papierik", "papieriky", "papierky", "papiere"],
     "answers": [
@@ -107,7 +107,7 @@
   {
     "questionId": 8,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je pivo?",
+    "questionText": "Klikni na obrázok na ktorom je pivo.",
     "questionAudioPath": "/sounds/testing/marketplace/8.mp3",
     "acceptedTranscripts": ["pivo", "pivko"],
     "answers": [
@@ -122,7 +122,7 @@
   {
     "questionId": 9,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je pomaranč?",
+    "questionText": "Klikni na obrázok na ktorom je pomaranč.",
     "questionAudioPath": "/sounds/testing/marketplace/9.mp3",
     "acceptedTranscripts": ["pomaranč", "pomaranc", "pomarančik", "pomarancik", "pomaranče", "pomarance"],
     "answers": [
@@ -137,7 +137,7 @@
   {
     "questionId": 10,
     "questionType": 1,
-    "questionText": "na ktorom obrázku je krupica?",
+    "questionText": "Klikni na obrázok na ktorom je krupica.",
     "questionAudioPath": "/sounds/testing/marketplace/10.mp3",
     "acceptedTranscripts": [
       "krupica",
@@ -164,7 +164,7 @@
   {
     "questionId": 11,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je lepidlo?",
+    "questionText": "Klikni na obrázok na ktorom je lepidlo.",
     "questionAudioPath": "/sounds/testing/marketplace/11.mp3",
     "acceptedTranscripts": ["lepidlo", "lepidlo na papier", "lepidlo na papierik", "lepím", "lepim"],
     "answers": [
@@ -179,7 +179,7 @@
   {
     "questionId": 12,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je mašľa?",
+    "questionText": "Klikni na obrázok na ktorom je mašľa.",
     "questionAudioPath": "/sounds/testing/marketplace/12.mp3",
     "acceptedTranscripts": ["mašľa", "masla", "mašlička", "maslicka", "stužka", "stuzka"],
     "answers": [
@@ -195,7 +195,7 @@
     "questionId": 13,
     "questionType": 2,
     "questionText": "Čo robí ujo na autobusovej zastávke?",
-    "questionText2": "Na ktorom obrázku ujo čaká na autobusovej zastávke?",
+    "questionText2": "Klikni na obrázok na ktorom ujo čaká na autobusovej zastávke.",
     "questionAudioPath": "/sounds/testing/marketplace/13-2.mp3",
     "questionAudioPath2": "/sounds/testing/marketplace/13-1.mp3",
     "acceptedTranscripts": [
@@ -219,7 +219,7 @@
     "questionId": 14,
     "questionType": 2,
     "questionText": "Čo robí mamka?",
-    "questionText2": "Na ktorom obrázku mamka nakupuje?",
+    "questionText2": "Klikni na obrázok na ktorom mamka nakupuje.",
     "questionAudioPath": "/sounds/testing/marketplace/14-2.mp3",
     "questionAudioPath2": "/sounds/testing/marketplace/14-1.mp3",
     "acceptedTranscripts": [
@@ -241,7 +241,7 @@
     "questionId": 15,
     "questionType": 2,
     "questionText": "Akú farbu má balón?",
-    "questionText2": "Na ktorom obrázku je žltý balón?",
+    "questionText2": "Klikni na obrázok na ktorom je žltý balón.",
     "questionAudioPath": "/sounds/testing/marketplace/15-2.mp3",
     "questionAudioPath2": "/sounds/testing/marketplace/15-1.mp3",
     "acceptedTranscripts": [

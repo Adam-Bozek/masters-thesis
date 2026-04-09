@@ -36,7 +36,7 @@
   {
     "questionId": 3,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je pršiplášť?",
+    "questionText": "Klikni na obrázok na ktorom je pršiplášť.",
     "questionAudioPath": "/sounds/testing/home/3.mp3",
     "acceptedTranscripts": [
       "pršiplášť",
@@ -86,7 +86,7 @@
   {
     "questionId": 5,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je čelo?",
+    "questionText": "Klikni na obrázok na ktorom je čelo.",
     "questionAudioPath": "/sounds/testing/home/5.mp3",
     "acceptedTranscripts": ["čelo", "celo"],
     "answers": [
@@ -101,7 +101,7 @@
   {
     "questionId": 6,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je lyžička?",
+    "questionText": "Klikni na obrázok na ktorom je lyžička.",
     "questionAudioPath": "/sounds/testing/home/6.mp3",
     "acceptedTranscripts": ["lyžička", "lyzicka", "lyžica", "lyzica", "lyžička malá", "lyzicka mala"],
     "answers": [
@@ -116,7 +116,7 @@
   {
     "questionId": 7,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je mačka?",
+    "questionText": "Klikni na obrázok na ktorom je mačka.",
     "questionAudioPath": "/sounds/testing/home/7.mp3",
     "acceptedTranscripts": ["mačka", "macka", "mačička", "macicka", "micka", "kocúrik", "kocurik"],
     "answers": [
@@ -131,7 +131,7 @@
   {
     "questionId": 8,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je nočník?",
+    "questionText": "Klikni na obrázok na ktorom je nočník.",
     "questionAudioPath": "/sounds/testing/home/8.mp3",
     "acceptedTranscripts": ["nočník", "nocnik", "nočníček", "nocnicek", "kakáč", "kakac"],
     "answers": [
@@ -146,7 +146,7 @@
   {
     "questionId": 9,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je nos?",
+    "questionText": "Klikni na obrázok na ktorom je nos.",
     "questionAudioPath": "/sounds/testing/home/9.mp3",
     "acceptedTranscripts": ["nos", "nosík", "nosik", "noštek", "nostek"],
     "answers": [
@@ -161,7 +161,7 @@
   {
     "questionId": 10,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku sú papučky?",
+    "questionText": "Klikni na obrázok na ktorom sú papučky.",
     "questionAudioPath": "/sounds/testing/home/10.mp3",
     "acceptedTranscripts": ["papučky", "papucky", "papuče", "papuce", "papučka", "papucka"],
     "answers": [
@@ -176,7 +176,7 @@
   {
     "questionId": 11,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je pena?",
+    "questionText": "Klikni na obrázok na ktorom je pena.",
     "questionAudioPath": "/sounds/testing/home/11.mp3",
     "acceptedTranscripts": ["pena", "penička", "penicka", "pena z mydla", "bublinky", "bublinky mydlo"],
     "answers": [
@@ -191,7 +191,7 @@
   {
     "questionId": 12,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je sedačka?",
+    "questionText": "Klikni na obrázok na ktorom je sedačka.",
     "questionAudioPath": "/sounds/testing/home/12.mp3",
     "acceptedTranscripts": ["sedačka", "sedacka", "pohovka", "gauč", "gauc", "sofa", "sófa", "kanapa"],
     "answers": [
@@ -206,7 +206,7 @@
   {
     "questionId": 13,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je svetlo?",
+    "questionText": "Klikni na obrázok na ktorom je svetlo.",
     "questionAudioPath": "/sounds/testing/home/13.mp3",
     "acceptedTranscripts": ["svetlo", "svetielko", "svieti svetlo"],
     "answers": [
@@ -221,7 +221,7 @@
   {
     "questionId": 14,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je pohár?",
+    "questionText": "Klikni na obrázok na ktorom je pohár.",
     "questionAudioPath": "/sounds/testing/home/14.mp3",
     "acceptedTranscripts": ["pohár", "pohar", "pohárik", "poharik", "sklenička", "sklenicka", "sklenica", "pohárik na vodu", "poharik na vodu"],
     "answers": [
@@ -236,7 +236,7 @@
   {
     "questionId": 15,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je udica?",
+    "questionText": "Klikni na obrázok na ktorom je udica.",
     "questionAudioPath": "/sounds/testing/home/15.mp3",
     "acceptedTranscripts": ["udica", "rybársky prút", "rybarsky prut", "prút", "prut", "udica na ryby", "prut na ryby"],
     "answers": [
@@ -251,7 +251,7 @@
   {
     "questionId": 16,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je váha?",
+    "questionText": "Klikni na obrázok na ktorom je váha.",
     "questionAudioPath": "/sounds/testing/home/16.mp3",
     "acceptedTranscripts": ["váha", "vaha", "váži", "vazi", "vážime", "vazime", "kuchynská váha", "kuchynska vaha"],
     "answers": [
@@ -266,7 +266,7 @@
   {
     "questionId": 17,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je váza?",
+    "questionText": "Klikni na obrázok na ktorom je váza.",
     "questionAudioPath": "/sounds/testing/home/17.mp3",
     "acceptedTranscripts": ["váza", "vaza", "vázička", "vazicka"],
     "answers": [
@@ -281,7 +281,7 @@
   {
     "questionId": 18,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je vedierko?",
+    "questionText": "Klikni na obrázok na ktorom je vedierko.",
     "questionAudioPath": "/sounds/testing/home/18.mp3",
     "acceptedTranscripts": ["vedierko", "vedro", "vedierko na piesok", "vedierko do piesku", "vedierka", "kýblik"],
     "answers": [
@@ -296,7 +296,7 @@
   {
     "questionId": 19,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je zubná pasta?",
+    "questionText": "Klikni na obrázok na ktorom je zubná pasta.",
     "questionAudioPath": "/sounds/testing/home/19.mp3",
     "acceptedTranscripts": ["zubná pasta", "zubna pasta", "pasta na zuby", "zubková pasta", "zubkova pasta"],
     "answers": [
@@ -311,21 +311,21 @@
   {
     "questionId": 20,
     "questionType": 2,
-    "questionText": "Čo robí dievčatko?",
-    "questionText2": "Na ktorom obrázku dievčatko plače?",
+    "questionText": "Čo robí chlapček?",
+    "questionText2": "Klikni na obrázok na ktorom chlapček plače.",
     "questionAudioPath": "/sounds/testing/home/20-2.mp3",
     "questionAudioPath2": "/sounds/testing/home/20-1.mp3",
-    "acceptedTranscripts": ["dievčatko plače", "dievcatko place", "dievcatko placa", "plače", "place", "placa", "reva", "reve"],
+    "acceptedTranscripts": ["chlapček plače", "dievcatko place", "dievcatko placa", "plače", "place", "placa", "reva", "reve"],
     "answers": [
-      { "answerId": 1, "isCorrect": true, "label": "Dievčatko plače", "imagePath": "/images/testing/home/20-1.gif" },
-      { "answerId": 2, "isCorrect": false, "label": "Dievčatko sa hrá s autom", "imagePath": "/images/testing/home/20-2.gif" }
+      { "answerId": 1, "isCorrect": true, "label": "chlapček plače", "imagePath": "/images/testing/home/20-1.gif" },
+      { "answerId": 2, "isCorrect": false, "label": "chlapček sa hrá s autom", "imagePath": "/images/testing/home/20-2.gif" }
     ]
   },
   {
     "questionId": 21,
     "questionType": 2,
     "questionText": "Čo robia ruky?",
-    "questionText2": "Na ktorom obrázku sa umývajú ruky?",
+    "questionText2": "Klikni na obrázok na ktorom sa umývajú ruky.",
     "questionAudioPath": "/sounds/testing/home/21-2.mp3",
     "questionAudioPath2": "/sounds/testing/home/21-1.mp3",
     "acceptedTranscripts": [
@@ -354,7 +354,7 @@
     "questionId": 22,
     "questionType": 2,
     "questionText": "Čo robí chlapček?",
-    "questionText2": "Na ktorom obrázku chlapček zýva v posteli?",
+    "questionText2": "Klikni na obrázok na ktorom chlapček zýva v posteli.",
     "questionAudioPath": "/sounds/testing/home/22-2.mp3",
     "questionAudioPath2": "/sounds/testing/home/22-1.mp3",
     "acceptedTranscripts": [
@@ -382,7 +382,7 @@
     "questionId": 23,
     "questionType": 2,
     "questionText": "Aká je táto izba?",
-    "questionText2": "Na ktorom obrázku je detská izba?",
+    "questionText2": "Klikni na obrázok na ktorom je detská izba.",
     "questionAudioPath": "/sounds/testing/home/23-2.mp3",
     "questionAudioPath2": "/sounds/testing/home/23-1.mp3",
     "acceptedTranscripts": ["detská izba", "detska izba", "detská", "detský", "detská izbička", "detska izbicka"],
@@ -397,7 +397,7 @@
     "questionId": 24,
     "questionType": 2,
     "questionText": "Kam ide chlapec?",
-    "questionText2": "Na ktorom obrázku ide chlapec dolu?",
+    "questionText2": "Klikni na obrázok na ktorom ide chlapec dolu.",
     "questionAudioPath": "/sounds/testing/home/24-2.mp3",
     "questionAudioPath2": "/sounds/testing/home/24-1.mp3",
     "acceptedTranscripts": ["ide dolu", "ide dole", "dole", "dolný", "dolu", "ide dole schodmi", "ide dolu schodmi"],

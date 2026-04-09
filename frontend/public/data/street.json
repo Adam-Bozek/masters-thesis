@@ -36,7 +36,7 @@
   {
     "questionId": 3,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je auto?",
+    "questionText": "Klikni na obrázok na ktorom je auto.",
     "questionAudioPath": "/sounds/testing/street/3.mp3",
     "acceptedTranscripts": ["auto", "autíčko", "auticko", "autko", "aúto", "autočko", "autocko", "auťo", "auto malé", "auto male", "male auto"],
     "answers": [
@@ -51,7 +51,7 @@
   {
     "questionId": 4,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je jama?",
+    "questionText": "Klikni na obrázok na ktorom je jama.",
     "questionAudioPath": "/sounds/testing/street/4.mp3",
     "acceptedTranscripts": [
       "jama",
@@ -80,7 +80,7 @@
   {
     "questionId": 5,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je kamión?",
+    "questionText": "Klikni na obrázok na ktorom je kamión.",
     "questionAudioPath": "/sounds/testing/street/5.mp3",
     "acceptedTranscripts": ["kamión", "kamion", "kamiónik", "kamionik", "naklaďák", "nakladak", "nákladiak", "nakladiak"],
     "answers": [
@@ -95,7 +95,7 @@
   {
     "questionId": 6,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je mesiac?",
+    "questionText": "Klikni na obrázok na ktorom je mesiac.",
     "questionAudioPath": "/sounds/testing/street/6.mp3",
     "acceptedTranscripts": ["mesiac", "mesiačik", "mesiacik", "mesiac na nebi", "mesiac hore", "mesiac vonku"],
 
@@ -111,7 +111,7 @@
   {
     "questionId": 7,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je miešačka?",
+    "questionText": "Klikni na obrázok na ktorom je miešačka.",
     "questionAudioPath": "/sounds/testing/street/7.mp3",
     "acceptedTranscripts": [
       "miešačka",
@@ -135,7 +135,7 @@
   {
     "questionId": 8,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je sanitka?",
+    "questionText": "Klikni na obrázok na ktorom je sanitka.",
     "questionAudioPath": "/sounds/testing/street/8.mp3",
     "acceptedTranscripts": ["sanitka", "sanitka auto", "záchranka", "zachranka", "ambulancia", "ambulancia auto"],
     "answers": [
@@ -150,7 +150,7 @@
   {
     "questionId": 9,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je zvonček?",
+    "questionText": "Klikni na obrázok na ktorom je zvonček.",
     "questionAudioPath": "/sounds/testing/street/9.mp3",
     "acceptedTranscripts": ["zvonček", "zvoncek", "zvonček na dvere", "zvoncek na dvere", "zvoní", "zvoni"],
     "answers": [
@@ -166,7 +166,7 @@
     "questionId": 10,
     "questionType": 2,
     "questionText": "Čo robí kamión?",
-    "questionText2": "Na ktorom obrázku kamión cúva?",
+    "questionText2": "Klikni na obrázok na ktorom kamión cúva.",
     "questionAudioPath": "/sounds/testing/street/10-2.mp3",
     "questionAudioPath2": "/sounds/testing/street/10-1.mp3",
     "acceptedTranscripts": ["kamión cúva", "kamion cuva", "cúva", "cuva", "cúva dozadu", "cuva dozadu"],
@@ -179,7 +179,7 @@
     "questionId": 11,
     "questionType": 2,
     "questionText": "Čo robí ujo?",
-    "questionText2": "Na ktorom obrázku ujo opravuje auto?",
+    "questionText2": "Klikni na obrázok na ktorom ujo opravuje auto.",
     "questionAudioPath": "/sounds/testing/street/11-2.mp3",
     "questionAudioPath2": "/sounds/testing/street/11-1.mp3",
     "acceptedTranscripts": [

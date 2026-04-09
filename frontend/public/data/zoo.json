@@ -19,7 +19,7 @@
   {
     "questionId": 2,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je chvost?",
+    "questionText": "Klikni na obrázok na ktorom je chvost?",
     "questionAudioPath": "/sounds/testing/zoo/2.mp3",
     "acceptedTranscripts": ["chvost", "chvostík", "chvostik", "chvostíček", "chvosticek", "chvostík malý", "chvostik maly"],
     "answers": [
@@ -34,7 +34,7 @@
   {
     "questionId": 3,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je jašterica?",
+    "questionText": "Klikni na obrázok na ktorom je jašterica?",
     "questionAudioPath": "/sounds/testing/zoo/3.mp3",
     "acceptedTranscripts": ["jašterica", "jasterica", "jašterička", "jastericka", "jašterka", "jasterka", "jašterička malá", "jastericka mala"],
     "answers": [
@@ -49,7 +49,7 @@
   {
     "questionId": 4,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je ježko?",
+    "questionText": "Klikni na obrázok na ktorom je ježko?",
     "questionAudioPath": "/sounds/testing/zoo/4.mp3",
     "acceptedTranscripts": ["ježko", "jezko", "ježík", "jezik", "ježinko", "jezinko", "ježko malý", "jezko maly", "jež"],
     "answers": [
@@ -64,7 +64,7 @@
   {
     "questionId": 5,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je kosť?",
+    "questionText": "Klikni na obrázok na ktorom je kosť?",
     "questionAudioPath": "/sounds/testing/zoo/5.mp3",
     "acceptedTranscripts": ["kosť", "kost", "kostička", "kosticka", "kostičky", "kosticky", "kosti"],
     "answers": [
@@ -79,7 +79,7 @@
   {
     "questionId": 6,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku sa nachádza medveď?",
+    "questionText": "Klikni na obrázok na ktorom sa nachádza medveď?",
     "questionAudioPath": "/sounds/testing/zoo/6.mp3",
     "acceptedTranscripts": ["medveď", "medved", "medvedík", "medvedik", "macko", "maco", "medo", "medoško", "medosko", "brumko"],
     "answers": [
@@ -94,7 +94,7 @@
   {
     "questionId": 7,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je tuleň?",
+    "questionText": "Klikni na obrázok na ktorom je tuleň?",
     "questionAudioPath": "/sounds/testing/zoo/7.mp3",
     "acceptedTranscripts": ["tuleň", "tulen", "tuleník", "tulenik", "tuleňko", "tulenko", "tuleňček", "tulencek"],
     "answers": [
@@ -109,7 +109,7 @@
   {
     "questionId": 8,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je veverička?",
+    "questionText": "Klikni na obrázok na ktorom je veverička?",
     "questionAudioPath": "/sounds/testing/zoo/8.mp3",
     "acceptedTranscripts": ["veverička", "vevericka", "veverka"],
     "answers": [
@@ -124,7 +124,7 @@
   {
     "questionId": 9,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je zoologická záhrada?",
+    "questionText": "Klikni na obrázok na ktorom je zoologická záhrada?",
     "questionAudioPath": "/sounds/testing/zoo/9.mp3",
     "acceptedTranscripts": ["zoo", "zoo park", "zoopark", "zoologická záhrada", "zoologicka zahrada"],
     "answers": [
@@ -140,7 +140,7 @@
     "questionId": 10,
     "questionType": 2,
     "questionText": "Čo robí dievčatko?",
-    "questionText2": "Na ktorom obrázku sa dievčatko bojí?",
+    "questionText2": "Klikni na obrázok na ktorom sa dievčatko bojí?",
     "questionAudioPath": "/sounds/testing/zoo/10-2.mp3",
     "questionAudioPath2": "/sounds/testing/zoo/10-1.mp3",
     "acceptedTranscripts": [

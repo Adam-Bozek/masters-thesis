@@ -2,7 +2,7 @@
   {
     "questionId": 1,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je bunda?",
+    "questionText": "Klikni na obrázok na ktorom je bunda.",
     "questionAudioPath": "/sounds/testing/mountains/1.mp3",
     "acceptedTranscripts": ["bunda", "bundička", "bundicka"],
     "answers": [
@@ -17,7 +17,7 @@
   {
     "questionId": 2,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku sú čižmy?",
+    "questionText": "Klikni na obrázok na ktorom sú čižmy.",
     "questionAudioPath": "/sounds/testing/mountains/2.mp3",
     "acceptedTranscripts": ["čižmy", "cizmy", "čižma", "cizma", "čižmičky", "cizmicky", "gumáky", "gumaky"],
     "answers": [
@@ -32,7 +32,7 @@
   {
     "questionId": 3,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku sú rukavice?",
+    "questionText": "Klikni na obrázok na ktorom sú rukavice.",
     "questionAudioPath": "/sounds/testing/mountains/3.mp3",
     "acceptedTranscripts": ["rukavice", "rukavica", "rukavičky", "rukavicky", "rukavička", "rukavicka"],
 
@@ -48,7 +48,7 @@
   {
     "questionId": 4,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je sneh?",
+    "questionText": "Klikni na obrázok na ktorom je sneh.",
     "questionAudioPath": "/sounds/testing/mountains/4.mp3",
     "acceptedTranscripts": ["sneh", "sniežik", "sniezik", "biely sneh", "sneh vonku"],
     "answers": [
@@ -63,7 +63,7 @@
   {
     "questionId": 5,
     "questionType": 1,
-    "questionText": "Na ktorom obrázku je svetrík?",
+    "questionText": "Klikni na obrázok na ktorom je svetrík.",
     "questionAudioPath": "/sounds/testing/mountains/5.mp3",
     "acceptedTranscripts": ["svetrík", "svetrik", "sveter", "pulóver", "pulover", "svetríček", "svetricek"],
     "answers": [
@@ -79,7 +79,7 @@
     "questionId": 6,
     "questionType": 2,
     "questionText": "Čo robí zvieratko?",
-    "questionText2": "Na ktorom obrázku zvieratko pije vodu?",
+    "questionText2": "Klikni na obrázok na ktorom zvieratko pije vodu.",
     "questionAudioPath": "/sounds/testing/mountains/6-2.mp3",
     "questionAudioPath2": "/sounds/testing/mountains/6-1.mp3",
     "acceptedTranscripts": [
@@ -101,7 +101,7 @@
     "questionId": 7,
     "questionType": 2,
     "questionText": "Čo robí dievčatko?",
-    "questionText2": "Na ktorom obrázku dievčatko ovoniava kvety?",
+    "questionText2": "Klikni na obrázok na ktorom dievčatko ovoniava kvety.",
     "questionAudioPath": "/sounds/testing/mountains/7-2.mp3",
     "questionAudioPath2": "/sounds/testing/mountains/7-1.mp3",
     "acceptedTranscripts": [
