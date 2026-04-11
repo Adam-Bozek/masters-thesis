@@ -37,7 +37,7 @@ services:
     networks: [app]
 
   cache:
-    image: redis:8.6.1-alpine
+    image: redis:8.6.2-alpine
     container_name: redis
     restart: unless-stopped
     env_file:
@@ -107,7 +107,7 @@ services:
     networks: [app]
 
   nginx:
-    image: nginx:1.29.6-alpine-slim
+    image: nginx:1.29.8-alpine-slim
     container_name: nginx
     restart: unless-stopped
     ports:

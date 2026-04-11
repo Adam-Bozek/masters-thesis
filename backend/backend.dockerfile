@@ -12,7 +12,7 @@
 #		 You should have received a copy of the GNU Affero General Public License along with this program.
 #		 If not, see <https://www.gnu.org/licenses/>..
 
-FROM python:3.14.3-alpine
+FROM python:3.14.4-alpine
 
 WORKDIR /app
 
