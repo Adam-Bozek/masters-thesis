@@ -275,6 +275,17 @@ def _ensure_session_category(session: UserTestSession, category_id: int) -> Sess
     )
 
 
+def _all_standard_categories_completed(session: UserTestSession) -> bool:
+    standard_categories = [
+        session_category for session_category in _session_categories(session) if int(session_category.category_id) <= STANDARD_CATEGORY_MAX_ID
+    ]
+
+    if not standard_categories:
+        return False
+
+    return all(session_category.completed_at is not None for session_category in standard_categories)
+
+
 @jwt_required()
 def create_session():
     uid = int(get_jwt_identity())
@@ -464,8 +475,13 @@ def complete_category(session_id: int, category_id: int):
     if session_category.completed_at:
         return jsonify({"message": "Kategória už bola dokončená"}), 400
 
-    session_category.completed_at = _now()
+    completed_at = _now()
+    session_category.completed_at = completed_at
     session_category.was_corrected = False
+
+    if _all_standard_categories_completed(session):
+        session.completed_at = completed_at
+
     if bool(session.is_guest):
         _touch_guest_session(session)
 
@@ -477,6 +493,7 @@ def complete_category(session_id: int, category_id: int):
                 "category_id": session_category.category_id,
                 "completed_at": session_category.completed_at.isoformat() if session_category.completed_at else None,
                 "was_corrected": bool(session_category.was_corrected),
+                "session_completed_at": session.completed_at.isoformat() if session.completed_at else None,
             }
         ),
         200,
