@@ -112,12 +112,22 @@ type SpeechRecognitionEventLike = {
 type SpeechRecognitionErrorLike = {
   error?: string;
   message?: string;
+  name?: string;
+};
+
+type SpeechRecognitionAvailability = {
+  secureContext: boolean;
+  inIframe: boolean;
+  speechRecognitionSupported: boolean;
+  mediaDevicesSupported: boolean;
+  permissionsPolicyAllowsMicrophone: boolean | null;
 };
 
 type BrowserSpeechRecognition = {
   continuous: boolean;
   interimResults: boolean;
   lang: string;
+  onstart: (() => void) | null;
   onresult: ((event: SpeechRecognitionEventLike) => void) | null;
   onerror: ((event: SpeechRecognitionErrorLike) => void) | null;
   onend: (() => void) | null;
@@ -359,19 +369,114 @@ function persistPhase3LocalAnswer(scopeKey: string, payload: SavePayload): void 
   localStorage.setItem(answersKey, JSON.stringify(storedAnswers));
 }
 
+function getMicrophonePermissionsPolicyState(): boolean | null {
+  if (typeof document === "undefined") return null;
+
+  const documentWithPolicies = document as Document & {
+    permissionsPolicy?: { allowsFeature?: (featureName: string) => boolean };
+    featurePolicy?: { allowsFeature?: (featureName: string) => boolean };
+  };
+
+  const policy = documentWithPolicies.permissionsPolicy ?? documentWithPolicies.featurePolicy;
+  if (!policy?.allowsFeature) return null;
+
+  try {
+    return policy.allowsFeature("microphone");
+  } catch {
+    return null;
+  }
+}
+
+function getSpeechAvailability(): SpeechRecognitionAvailability {
+  if (typeof window === "undefined") {
+    return {
+      secureContext: true,
+      inIframe: false,
+      speechRecognitionSupported: false,
+      mediaDevicesSupported: false,
+      permissionsPolicyAllowsMicrophone: null,
+    };
+  }
+
+  const browserWindow = window as Window & {
+    SpeechRecognition?: BrowserSpeechRecognitionConstructor;
+    webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
+  };
+
+  return {
+    secureContext: window.isSecureContext,
+    inIframe: window.self !== window.top,
+    speechRecognitionSupported: Boolean(browserWindow.SpeechRecognition || browserWindow.webkitSpeechRecognition),
+    mediaDevicesSupported: Boolean(navigator.mediaDevices?.getUserMedia),
+    permissionsPolicyAllowsMicrophone: getMicrophonePermissionsPolicyState(),
+  };
+}
+
+function normalizeSpeechErrorCode(input?: string): string {
+  const value = String(input ?? "")
+    .trim()
+    .toLowerCase();
+
+  if (!value) return "speech_recognition_error";
+  if (value in { notallowederror: 1, "not-allowed": 1, permissiondeniederror: 1 }) return "not_allowed";
+  if (value in { noaudioinputerror: 1, "audio-capture": 1, devicesnotfounderror: 1, notfounderror: 1 }) return "audio_capture";
+  if (value in { nospeecherror: 1, "no-speech": 1 }) return "no_speech";
+  if (value in { abortederror: 1, aborted: 1 }) return "aborted";
+  if (value in { networkerror: 1, network: 1 }) return "network";
+  if (value in { service_not_allowed: 1 }) return "service_not_allowed";
+
+  return value.replace(/\s+/g, "_");
+}
+
+function getSpeechErrorMessage(errorCode: string): string {
+  switch (errorCode) {
+    case "iframe_microphone_blocked":
+      return "Mikrofón blokuje iframe alebo Permissions-Policy. Otvorte stránku priamo v Chrome alebo povoľte microphone pre iframe.";
+    case "insecure_context":
+      return "Mikrofón funguje len cez HTTPS alebo localhost.";
+    case "speech_recognition_unsupported":
+      return "Tento prehliadač nepodporuje rozpoznávanie reči. Použite písanie.";
+    case "media_devices_unsupported":
+      return "Tento prehliadač nepodporuje prístup k mikrofónu.";
+    case "not_allowed":
+      return "Prístup k mikrofónu bol zablokovaný. V Androide to často znamená iframe, WebView alebo zakázané oprávnenie pre stránku.";
+    case "audio_capture":
+      return "Mikrofón nie je dostupný alebo ho používa iná aplikácia.";
+    case "no_speech":
+      return "Nič nebolo rozpoznané. Skúste znova.";
+    case "network":
+      return "Rozpoznávanie reči zlyhalo kvôli sieti.";
+    case "service_not_allowed":
+      return "Služba rozpoznávania reči nie je v tomto prostredí povolená.";
+    case "aborted":
+      return "Nahrávanie bolo prerušené. Skúste znova.";
+    default:
+      return `Rozpoznávanie reči nie je dostupné (${errorCode}). Použite písanie.`;
+  }
+}
+
 /* -------------------------------------------------------------------------------------------------
  * Hooks
  * -----------------------------------------------------------------------------------------------*/
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 function useBrowserSpeechRecognition(language: string) {
   const [supported, setSupported] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [listening, setListening] = useState(false);
   const [interimText, setInterimText] = useState("");
   const [finalText, setFinalText] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [availability, setAvailability] = useState<SpeechRecognitionAvailability>(() => getSpeechAvailability());
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
 
   useEffect(() => {
+    const nextAvailability = getSpeechAvailability();
+    setAvailability(nextAvailability);
+
     const browserWindow = window as Window & {
       SpeechRecognition?: BrowserSpeechRecognitionConstructor;
       webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
@@ -388,6 +493,11 @@ function useBrowserSpeechRecognition(language: string) {
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = language;
+
+    recognition.onstart = () => {
+      setStarting(false);
+      setListening(true);
+    };
 
     recognition.onresult = (event) => {
       let nextInterimText = "";
@@ -415,13 +525,15 @@ function useBrowserSpeechRecognition(language: string) {
     };
 
     recognition.onerror = (event) => {
-      const nextError = String(event?.error ?? event?.message ?? "").trim() || "speech_recognition_error";
+      const nextError = normalizeSpeechErrorCode(event?.error ?? event?.name ?? event?.message);
       console.error("[Phase3] Speech recognition failed", event);
       setError(nextError);
+      setStarting(false);
       setListening(false);
     };
 
     recognition.onend = () => {
+      setStarting(false);
       setListening(false);
     };
 
@@ -437,25 +549,68 @@ function useBrowserSpeechRecognition(language: string) {
     };
   }, [language]);
 
-  const startListening = useCallback(() => {
-    if (!recognitionRef.current) return;
+  const startListening = useCallback(async () => {
+    const nextAvailability = getSpeechAvailability();
+    setAvailability(nextAvailability);
+
+    if (!nextAvailability.secureContext) {
+      setError("insecure_context");
+      return;
+    }
+
+    if (!nextAvailability.speechRecognitionSupported) {
+      setError("speech_recognition_unsupported");
+      return;
+    }
+
+    if (!nextAvailability.mediaDevicesSupported) {
+      setError("media_devices_unsupported");
+      return;
+    }
+
+    if (nextAvailability.permissionsPolicyAllowsMicrophone === false) {
+      setError("iframe_microphone_blocked");
+      return;
+    }
+
+    if (!recognitionRef.current) {
+      setError("speech_recognition_unsupported");
+      return;
+    }
 
     setFinalText("");
     setInterimText("");
     setError(null);
-    setListening(true);
+    setStarting(true);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+    } catch (caughtError) {
+      const mediaError = caughtError as DOMException & { message?: string; name?: string };
+      const normalizedName = normalizeSpeechErrorCode(mediaError?.name ?? mediaError?.message);
+      setError(normalizedName === "not_allowed" && nextAvailability.inIframe ? "iframe_microphone_blocked" : normalizedName);
+      setStarting(false);
+      setListening(false);
+      return;
+    }
+
+    await sleep(250);
 
     try {
       recognitionRef.current.start();
     } catch (caughtError) {
-      const nextError = String((caughtError as Error)?.message ?? "").trim() || "speech_recognition_start_failed";
-      setError(nextError);
+      const nextError = normalizeSpeechErrorCode((caughtError as Error)?.name ?? (caughtError as Error)?.message);
+      setError(nextError === "not_allowed" && nextAvailability.inIframe ? "iframe_microphone_blocked" : nextError);
+      setStarting(false);
       setListening(false);
     }
   }, []);
 
   const stopListening = useCallback(() => {
     if (!recognitionRef.current) return;
+
+    setStarting(false);
 
     try {
       recognitionRef.current.stop();
@@ -469,12 +624,16 @@ function useBrowserSpeechRecognition(language: string) {
   const resetTranscript = useCallback(() => {
     setFinalText("");
     setInterimText("");
+    setError(null);
+    setStarting(false);
   }, []);
 
   return {
+    availability,
     error,
     finalText,
     interimText,
+    starting,
     listening,
     resetTranscript,
     startListening,
@@ -666,9 +825,11 @@ function Phase3Testing({
   const touchStartYRef = useRef<number | null>(null);
 
   const {
+    availability: speechAvailability,
     error: speechError,
     finalText,
     interimText,
+    starting,
     listening,
     resetTranscript,
     startListening,
@@ -691,7 +852,7 @@ function Phase3Testing({
   const answeredCount = answeredIds.size;
   const progressPercent = totalQuestions ? Math.round((answeredCount / totalQuestions) * 100) : 0;
   const liveTranscript = `${finalText}${finalText && interimText ? " " : ""}${interimText}`.trim();
-  const canNavigate = uiMode === "recording" && !saveBusy && !listening;
+  const canNavigate = uiMode === "recording" && !saveBusy && !starting && !listening;
   const showEditInput = uiMode === "editing";
   const showTypingInput = uiMode === "typing";
 
@@ -701,6 +862,9 @@ function Phase3Testing({
   const isEditingMode = uiMode === "editing";
   const hasTranscript = Boolean(liveTranscript.trim());
   const hasEditableText = Boolean(editableText.trim());
+  const speechErrorMessage = speechError ? getSpeechErrorMessage(speechError) : null;
+  const shouldShowMicPermissionCta = speechError === "not_allowed" || speechError === "iframe_microphone_blocked";
+  const micButtonLabel = shouldShowMicPermissionCta ? "Povoliť mikrofón" : speechError === "no_speech" ? "Skúsiť znova" : "Nahrávať";
 
   const playAudio = useCallback(async () => {
     const audioElement = audioRef.current;
@@ -1243,22 +1407,29 @@ function Phase3Testing({
             )}
 
             <div className="d-flex flex-wrap justify-content-center gap-2">
-              {isRecordingMode && !listening && supported && !speechError && (
+              {isRecordingMode && !starting && !listening && supported && (
                 <button
                   type="button"
                   className={buttonClassName("success")}
                   disabled={saveBusy}
                   onClick={() => {
                     pauseAudio();
-                    startListening();
+                    void startListening();
                   }}
                 >
                   <i className="bi bi-mic-fill me-2" />
-                  Nahrávať
+                  {micButtonLabel}
                 </button>
               )}
 
-              {isRecordingMode && listening && supported && !speechError && (
+              {isRecordingMode && starting && supported && (
+                <button type="button" className={buttonClassName("outline-success")} disabled>
+                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
+                  Pripravujem mikrofón…
+                </button>
+              )}
+
+              {isRecordingMode && listening && supported && (
                 <button
                   type="button"
                   className={buttonClassName("outline-success")}
@@ -1273,7 +1444,7 @@ function Phase3Testing({
                 </button>
               )}
 
-              {isRecordingMode && !listening && (
+              {isRecordingMode && !starting && !listening && (
                 <button
                   type="button"
                   className={buttonClassName("outline-primary")}
@@ -1289,7 +1460,7 @@ function Phase3Testing({
                 </button>
               )}
 
-              {isRecordingMode && !listening && hasTranscript && (
+              {isRecordingMode && !starting && !listening && hasTranscript && (
                 <button
                   type="button"
                   className={buttonClassName("outline-secondary")}
@@ -1307,7 +1478,19 @@ function Phase3Testing({
 
             {!supported && <div className="text-danger small text-center">Tento prehliadač nepodporuje rozpoznávanie reči. Použite písanie.</div>}
 
-            {speechError && <div className="text-danger small text-center">Rozpoznávanie reči nie je dostupné ({speechError}). Použite písanie.</div>}
+            {starting && !speechError && (
+              <div className="text-muted small text-center">Počkajte na aktiváciu mikrofónu. Hovorte až keď sa zobrazí tlačidlo Stop.</div>
+            )}
+
+            {listening && !speechError && <div className="text-success small text-center">Mikrofón je pripravený. Hovorte teraz.</div>}
+
+            {speechErrorMessage && <div className="text-danger small text-center">{speechErrorMessage}</div>}
+
+            {speechAvailability.inIframe && speechError === "iframe_microphone_blocked" && (
+              <div className="text-muted small text-center">
+                Táto stránka je otvorená vo vnorenom rámci alebo prostredí, ktoré nepovoľuje mikrofón.
+              </div>
+            )}
 
             {isReviewMode && (
               <div className="d-flex flex-wrap justify-content-center gap-2">

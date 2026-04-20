@@ -243,31 +243,83 @@ function LoadingImageFill({
   style?: React.CSSProperties;
   priority?: boolean;
 }) {
-  const [loaded, setLoaded] = useState(false);
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isGif = /\.gif($|\?)/i.test(src);
+  const maxRetryAttempts = 2;
+  const retryDelayMs = 350;
+
+  const imageSrc = useMemo(() => {
+    if (retryAttempt === 0) return src;
+    const separator = src.includes("?") ? "&" : "?";
+    return `${src}${separator}__retry=${retryAttempt}`;
+  }, [src, retryAttempt]);
 
   useEffect(() => {
-    setLoaded(false);
+    setStatus("loading");
+    setRetryAttempt(0);
+
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
   }, [src]);
+
+  useEffect(() => {
+    return () => {
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  const scheduleRetry = useCallback(() => {
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+    }
+
+    if (retryAttempt >= maxRetryAttempts) {
+      setStatus("error");
+      return;
+    }
+
+    setStatus("loading");
+    retryTimeoutRef.current = setTimeout(() => {
+      setRetryAttempt((currentAttempt) => currentAttempt + 1);
+      retryTimeoutRef.current = null;
+    }, retryDelayMs);
+  }, [retryAttempt]);
 
   return (
     <>
-      {!loaded && (
-        <div className="position-absolute top-50 start-50 translate-middle">
+      {status === "loading" && (
+        <div className="position-absolute top-50 start-50 translate-middle text-center">
           <div className="spinner-border" role="status" aria-label="Loading">
             <span className="visually-hidden">Loading...</span>
           </div>
+          {retryAttempt > 0 && <div className="small text-muted mt-2">Opätovné načítanie...</div>}
         </div>
       )}
+
+      {status === "error" && (
+        <div className="position-absolute top-50 start-50 translate-middle text-muted small text-center px-2">Obrázok sa nepodarilo načítať</div>
+      )}
+
       <Image
-        src={src}
+        key={imageSrc}
+        src={imageSrc}
         alt={alt}
         fill
         sizes={sizes}
         priority={priority}
-        onLoadingComplete={() => setLoaded(true)}
+        unoptimized={isGif}
+        onLoad={() => setStatus("loaded")}
+        onError={scheduleRetry}
         style={{
           ...(style ?? {}),
-          opacity: loaded ? 1 : 0,
+          opacity: status === "loaded" ? 1 : 0,
           transition: `opacity ${fadeDurationMs}ms ease`,
         }}
       />
@@ -328,6 +380,9 @@ function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, gue
   const [audioPlaying, setAudioPlaying] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const wrongQuestionsKey = useMemo(() => wrongQuestions.map((question) => question.questionId).join("|"), [wrongQuestions]);
+  const stableWrongQuestions = useMemo(() => dedupeQuestionsById(wrongQuestions), [wrongQuestionsKey]);
 
   const orderedQuestions = useMemo(() => {
     const questionById = new Map(questions.map((question) => [question.questionId, question]));
@@ -442,7 +497,7 @@ function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, gue
     setLoading(true);
 
     try {
-      const uniqueQuestions = dedupeQuestionsById(wrongQuestions);
+      const uniqueQuestions = stableWrongQuestions;
       const randomizedQuestionOrder = shuffleArray(uniqueQuestions.map((question) => question.questionId));
       const answersByQuestionId: Record<number, Answer[]> = {};
 
@@ -473,7 +528,7 @@ function Phase5Testing({ wrongQuestions, categoryId, storageType, sessionId, gue
     } finally {
       setLoading(false);
     }
-  }, [localScopeKey, useLocalStorage, wrongQuestions]);
+  }, [localScopeKey, stableWrongQuestions, useLocalStorage]);
 
   useEffect(() => {
     if (!useDatabase || !sessionId || !questions.length) {
