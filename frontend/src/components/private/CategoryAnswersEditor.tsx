@@ -122,6 +122,20 @@ const normalizeText = (value: string | null | undefined): string => (value ?? ""
 const normalizeCompare = (value: string | null | undefined): string => normalizeText(value).toLowerCase();
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
+  const axiosError = error as {
+    response?: { data?: { message?: string } };
+    message?: string;
+  };
+
+  const responseMessage = axiosError?.response?.data?.message;
+  if (typeof responseMessage === "string" && responseMessage.trim()) {
+    return responseMessage;
+  }
+
+  if (typeof axiosError?.message === "string" && axiosError.message.trim()) {
+    return axiosError.message;
+  }
+
   if (error instanceof Error && error.message.trim()) {
     return error.message;
   }

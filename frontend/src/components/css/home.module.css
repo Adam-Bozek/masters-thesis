@@ -49,7 +49,7 @@
   display: grid;
   grid-template-columns: minmax(300px, 0.95fr) minmax(340px, 1.05fr);
   gap: 14px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .heroPane,
@@ -67,9 +67,10 @@
 
 .panelPane{
   display: grid;
-  grid-template-rows: auto auto;
-  align-content: start;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: stretch;
   gap: 10px;
+  height: 100%;
 }
 
 .panelCard{
@@ -81,6 +82,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 0;
+  height: 100%;
 }
 
 .eyebrow{
@@ -193,6 +196,7 @@
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);
     gap: 10px;
+    align-items: start;
   }
 
   .heroPane{
@@ -201,12 +205,14 @@
   }
 
   .panelPane{
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    height: auto;
   }
 
   .panelCard{
     min-height: 0;
     padding: 12px;
+    height: auto;
   }
 
   .navGrid{

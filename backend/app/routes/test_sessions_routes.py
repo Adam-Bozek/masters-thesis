@@ -506,8 +506,6 @@ def add_or_update_answer(session_id: int):
         return error_response
 
     session = cast(UserTestSession, session)
-    if session.completed_at:
-        return jsonify({"message": "Relácia už bola dokončená"}), 400
 
     data = _request_json()
     try:
@@ -524,6 +522,11 @@ def add_or_update_answer(session_id: int):
     session_category = _ensure_session_category(session, category_id)
     if not session_category:
         return jsonify({"message": "Kategória nie je súčasťou tejto relácie"}), 400
+
+    # Po dokončení relácie povoľ korekcie už existujúcich kategórií.
+    # Zablokované zostáva iba zapisovanie do kategórie, ktorá ešte nebola dokončená.
+    if session.completed_at and session_category.completed_at is None:
+        return jsonify({"message": "Relácia už bola dokončená"}), 400
 
     category = cast(TestCategory, session_category.category)
     if not (1 <= question_number <= category.question_count):
