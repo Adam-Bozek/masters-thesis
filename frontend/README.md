@@ -174,6 +174,14 @@ The demo uses:
 - `public/data/demo/scenes.json`
 - `public/data/demo/questions.json`
 
+## Public assets
+
+The application depends on runtime files stored in `frontend/public/`, including JSON configuration, images, and audio assets.
+
+These files are **not included in the public GitHub repository**. A fresh clone may therefore be missing data required for category testing, scene rendering, image prompts, and audio playback.
+
+See [`public/README.md`](./public/README.md) for the expected structure and local setup requirements.
+
 ## Environment variables
 
 Create a `.env.local` file in the `frontend` directory:
